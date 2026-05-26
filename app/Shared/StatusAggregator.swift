@@ -1,5 +1,17 @@
 import Foundation
 
+struct TransportStatus: Identifiable, Equatable {
+    enum State: Equatable {
+        case connected
+        case disconnected
+        case unavailable
+    }
+
+    let id: String
+    let name: String
+    let state: State
+}
+
 final class StatusAggregator: NSObject {
     weak var delegate: StatusMonitorDelegate?
 
@@ -10,6 +22,25 @@ final class StatusAggregator: NSObject {
 
     static func displayName(for agentID: String) -> String {
         BLEStatusMonitor.displayName(for: agentID)
+    }
+
+    var transportStatuses: [TransportStatus] {
+        var statuses: [TransportStatus] = [
+            TransportStatus(id: "ble", name: "BLE", state: bleMonitor.isConnected ? .connected : .disconnected),
+            TransportStatus(id: "lan", name: "局域网", state: httpMonitor.isConnected ? .connected : .disconnected),
+            TransportStatus(id: "usb", name: "USB", state: usbMonitor.isConnected ? .connected : .disconnected),
+        ]
+
+        let tailscaleState: TransportStatus.State
+        if tailscaleMonitors.isEmpty {
+            tailscaleState = .unavailable
+        } else if tailscaleMonitors.contains(where: { $0.isConnected }) {
+            tailscaleState = .connected
+        } else {
+            tailscaleState = .disconnected
+        }
+        statuses.append(TransportStatus(id: "tailscale", name: "Tailscale", state: tailscaleState))
+        return statuses
     }
 
     private let bleMonitor = BLEStatusMonitor()

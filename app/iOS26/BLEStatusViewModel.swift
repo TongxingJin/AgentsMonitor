@@ -7,6 +7,7 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
     @Published var selectedAgentID = "codex"
     @Published var isConnected = false
     @Published var quotas: QuotaSnapshot = .fallback
+    @Published var transportStatuses: [TransportStatus] = []
 
     private let monitor = StatusAggregator()
     private static let hostsKey = "tailscaleHosts"
@@ -20,11 +21,13 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
         super.init()
         monitor.delegate = self
         monitor.setTailscaleHosts(tailscaleHosts)
+        syncTransportStatuses()
     }
 
     func applyTailscaleHosts(_ hosts: [String]) {
         UserDefaults.standard.set(hosts.joined(separator: "\n"), forKey: Self.hostsKey)
         monitor.setTailscaleHosts(hosts)
+        syncTransportStatuses()
     }
 
     var currentStatus: AgentStatus {
@@ -38,11 +41,16 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
     func selectAgent(_ id: String) {
         selectedAgentID = id
     }
+
+    private func syncTransportStatuses() {
+        transportStatuses = monitor.transportStatuses
+    }
 }
 
 extension BLEStatusViewModel: StatusMonitorDelegate {
     func monitorDidConnect() {
         isConnected = true
+        syncTransportStatuses()
     }
 
     func monitorDidDisconnect() {
@@ -50,6 +58,7 @@ extension BLEStatusViewModel: StatusMonitorDelegate {
         statuses = [:]
         availableAgents = []
         quotas = .fallback
+        syncTransportStatuses()
     }
 
     func monitorDidReceive(_ snapshot: StatusSnapshot) {
@@ -69,5 +78,7 @@ extension BLEStatusViewModel: StatusMonitorDelegate {
         if !availableAgents.contains(selectedAgentID), let first = availableAgents.first {
             selectedAgentID = first
         }
+
+        syncTransportStatuses()
     }
 }

@@ -1,243 +1,181 @@
-# Agent 状态灯（Mac -> iPhone 蓝牙）
+# AgentsMonitor
 
-这个项目现在不再沿用只服务 Claude 的命名。
+在 iPhone 上实时查看 AI agent（Claude Code、Codex 等）的工作状态，以及剩余额度。
 
-它已经扩展成一套通用链路：
+当 agent 在思考或执行任务时，手机屏幕会变成动态彩色；需要你介入批准时，屏幕会变成闪烁的红色呼吸灯。
 
-- Mac 端分别产出不同 agent 的状态文件，例如 `Claude` / `Codex`
-- `mac-beacon` 把多个 agent 的状态合并成一条 BLE 广播
-- iPhone App 收到后可在手机端切换当前查看的 agent
+---
 
-当前支持的状态：
+## 支持的功能
 
-| 状态 | 颜色 | 含义 |
-|------|------|------|
-| `working` | 白底彩色圆环 | 正在思考或执行任务 |
-| `idle` | 白色 | 当前空闲 |
-| `awaiting_approval` | 红色 | 等待你在 Mac 上批准 |
+### 状态显示
 
-iPhone 端当前是横屏仪表盘布局：
+| 状态 | 视觉效果 | 含义 |
+|------|----------|------|
+| Working | 白底浮动彩色圆环 | Agent 正在思考或执行任务 |
+| Idle | 白色 | Agent 当前空闲 |
+| Awaiting Approval | 红色呼吸灯 | 需要你在电脑上批准操作 |
 
-- 中间显示 agent 当前状态
-- 左侧显示 `5 小时` 剩余额度圆柱
-- 右侧显示 `7 天` 剩余额度圆柱
-- 圆柱颜色会随剩余比例从绿色逐渐变黄再变红
+### 额度显示
 
-## 现在的架构
+- 左侧圆柱：**5 小时**剩余额度
+- 右侧圆柱：**7 天**剩余额度
+- 圆柱颜色随剩余比例从绿色逐渐变黄变红
 
-```text
-Claude agent hooks      Codex agent hooks
-    ↓                       ↓
-~/.claude-status       ~/.codex/agent-status/status.txt
-           \            /
-            \          /
-           Mac Beacon (Swift / BLE)
-                    ↓
-        iPhone App (切换不同 agent)
-```
+### 多 Agent 切换
 
-BLE 特征值现在是 JSON：
+顶部选项卡可在 Claude Code 和 Codex 之间切换，各自独立显示状态和额度。
 
-```json
-{
-  "version": 1,
-  "agents": {
-    "claude": "working",
-    "codex": "idle"
-  }
-}
-```
+---
 
-旧版纯字符串协议仍然兼容，iPhone 端会自动回退。
+## 三种通信方式
 
-## 已完成的改动
+### 蓝牙 BLE — Mac ↔ iPhone
 
-- `mac-beacon` 现在同时读取 `~/.claude-status` 和 `~/.codex/agent-status/status.txt`
-- iPhone 端增加了 agent 切换
-- BLE 广播名已经统一成 `AgentStatus`
-- 新增 `hooks/codex/`，用于把 Codex 状态写到 `~/.codex/agent-status/status.txt`
+适合：**MacBook 用户**
 
-## Agent 接入
+- 无需任何网络，纯设备间直连
+- Mac 上运行 `mac-beacon`，iPhone 自动发现并连接
+- iOS 12 / iOS 26 均支持
+- 同时支持 Claude Code 和 Codex 的状态与额度
 
-默认安装方式已经统一为一次同时安装 Claude 和 Codex：
+### Tailscale — Ubuntu/Mac ↔ iPhone
+
+适合：**台式机用户**，或需要**跨距离**监控
+
+- 只要手机连接 WiFi、电脑在 Tailscale 网络内即可，无需在同一局域网
+- Ubuntu 上运行 `ubuntu-beacon`，iOS 26 app 填入电脑的 Tailscale IP 后自动轮询
+- 支持同时配置多台电脑（如 MacBook + Ubuntu 台式机）
+
+### USB — Ubuntu ↔ iPhone
+
+适合：**Ubuntu 台式机用户**，无需在电脑或手机上配置任何网络服务
+
+- 用数据线连接即可，不依赖蓝牙，不需要在手机上安装 Tailscale
+- Ubuntu 主动通过 USB 将状态推送到手机，手机无需做任何网络配置
+
+---
+
+## 支持的平台
+
+| 电脑端 | 手机端 | 通信方式 |
+|--------|--------|----------|
+| macOS (MacBook) | iOS 12+ | BLE 蓝牙 |
+| macOS (MacBook) | iOS 26 | BLE 蓝牙 |
+| Ubuntu 台式机 | iOS 26 | Tailscale HTTP |
+| Ubuntu 台式机 | iOS 12+ | USB 反向推送 |
+
+三种方式可以**同时运行**，App 会自动合并所有来源的状态，以最新、最活跃的为准。
+
+---
+
+## 快速安装
+
+### 第一步：安装电脑端 Hooks
+
+让 Claude Code 和 Codex 在运行时写出状态文件：
 
 ```bash
 cd hooks
-chmod +x install.sh pre_tool_use.sh post_tool_use.sh stop.sh
-chmod +x codex/*.sh
 ./install.sh
 ```
 
-安装后会写入：
-
+验证：
 ```bash
-~/.claude-status
-~/.codex/agent-status/status.txt
+echo working > ~/.claude-status      # Claude 状态
+echo idle > ~/.codex/agent-status/status.txt  # Codex 状态
 ```
 
-如果你只想单独重装 Codex，也可以继续使用：
+### 第二步：按你的设备选择通信方式
 
-```bash
-cd hooks/codex
-chmod +x *.sh
-./install.sh
-```
+---
 
-## Codex 细节
-
-Codex 部分新增了这些脚本：
-
-```text
-hooks/codex/
-├── session_start.sh
-├── user_prompt_submit.sh
-├── pre_tool_use.sh
-├── post_tool_use.sh
-├── permission_request.sh
-└── stop.sh
-```
-
-它们分别对应这些事件语义：
-
-- `SessionStart` -> `idle`
-- `UserPromptSubmit` -> `working`
-- `PreToolUse` -> `working`
-- `PostToolUse` -> `working`
-- `PermissionRequest` -> `awaiting_approval`
-- `Stop` -> `idle`
-
-安装脚本：
-
-```bash
-cd hooks/codex
-chmod +x *.sh
-./install.sh
-```
-
-它会把脚本复制到：
-
-```bash
-~/.codex/agent-status-hooks
-```
-
-并自动把运行时 hook 定义写到：
-
-```bash
-~/.codex/config.toml
-```
-
-状态文件默认写到：
-
-```bash
-~/.codex/agent-status/status.txt
-```
-
-Codex 侧的 source of truth 约定如下：
-
-- 仓库里的 `hooks/codex/*.sh` 是安装源模板
-- `~/.codex/agent-status-hooks/*.sh` 是实际运行时脚本
-- `~/.codex/config.toml` 里的 `[hooks]` 是实际生效配置
-
-这意味着：
-
-- 你如果修改了仓库里的脚本，需要重新运行 `hooks/codex/install.sh`
-- 你如果只改 `~/.codex/hooks.json`，这套接法默认不会以它为准
-
-如果 Codex 提示这些 hooks 需要 review / trust，需要在 Codex 自己的 hooks 管理界面里批准它们；批准后，Codex 会自己维护对应的 trust state。
-
-## 启动 Mac 端广播
+#### 方案 A：Mac + BLE（推荐 MacBook 用户）
 
 ```bash
 cd mac-beacon
 ./build.sh
-./AgentStatusBeacon
+./install-launch-agent.sh   # 设置为开机自动运行
 ```
 
-二进制名现在已经统一成 `AgentStatusBeacon`，它会同时广播 Claude 和 Codex。
+手机端：打开 iOS app，会自动扫描并连接，无需任何配置。
 
-默认监控：
+---
 
-- `CLAUDE_STATUS_FILE` -> `~/.claude-status`
-- `CODEX_STATUS_FILE` -> `~/.codex/agent-status/status.txt`
+#### 方案 B：Ubuntu + Tailscale（推荐台式机用户）
 
-## 开机自动后台运行
-
-如果你不想每次手动在 terminal 里启动 beacon，可以把它安装成 macOS `launchd` 的 `LaunchAgent`：
+**Ubuntu 端：**
 
 ```bash
-cd mac-beacon
-chmod +x build.sh run-beacon.sh install-launch-agent.sh uninstall-launch-agent.sh
-./install-launch-agent.sh
+cd ubuntu-beacon
+python3 beacon.py &                # 或 ./install.sh 设为系统服务
 ```
 
-安装后它会：
+**手机端（iOS 26）：**
 
-- 自动编译 `AgentStatusBeacon`
-- 把运行文件复制到 `~/Library/Application Support/AgentStatusBeacon`
-- 写入 `~/Library/LaunchAgents/com.jin.agent-status-beacon.plist`
-- 在你登录 macOS 后自动后台启动
-- 进程退出时自动拉起
+打开 app，点击右上角网络图标，填入 Ubuntu 的 Tailscale IP（如 `100.91.235.49`），保存即可。
 
-日志位置：
+---
+
+#### 方案 C：Ubuntu + USB
+
+**前置条件：**
 
 ```bash
-~/Library/Logs/AgentStatusBeacon/stdout.log
-~/Library/Logs/AgentStatusBeacon/stderr.log
+sudo apt install libimobiledevice-utils libusbmuxd-tools
+idevicepair pair   # 首次需要信任设备
 ```
 
-常用命令：
+**安装并启动：**
 
 ```bash
-launchctl print gui/$(id -u)/com.jin.agent-status-beacon
-launchctl kickstart -k gui/$(id -u)/com.jin.agent-status-beacon
+cd ubuntu-usb
+./install.sh
 ```
 
-如果要取消开机自启：
+手机用数据线连接 Ubuntu，app 会自动接收状态推送。
+
+---
+
+### 第三步：安装 iPhone App
+
+用 Xcode 打开 `app/` 目录，选择对应 target：
+
+- `iOS26` — iOS 26+，支持全部三种通信方式
+- `iOS12` — iOS 12，支持 BLE 和 USB
+
+连接真机，Build & Run。
+
+---
+
+## Codex 额度同步到 Ubuntu
+
+如果你在 Mac 上使用 Codex，但手机通过 USB 连接 Ubuntu，可以让 Mac 将额度数据推送给 Ubuntu：
+
+在 Mac 的 `~/.zshrc` 中添加：
 
 ```bash
-cd mac-beacon
-./uninstall-launch-agent.sh
+export QUOTA_PUSH_URL="http://<Ubuntu-Tailscale-IP>:8765/quota"
 ```
 
-## iPhone App
+之后每次 Codex 在 Mac 上结束任务，额度数据会自动同步到 Ubuntu，通过 USB 连接的手机也能看到 Codex 剩余额度。
 
-1. 新建 iOS App（SwiftUI，iOS 16+）
-   App 名称建议直接使用 `Agent Status Monitor`
-2. 把 `ios-app-src/` 下的 `.swift` 文件拖进项目
-3. 在 `Info.plist` 加上：
-   - `NSBluetoothAlwaysUsageDescription` -> `用于接收 Mac 上 agent 的状态`
-   - `UISupportedInterfaceOrientations` / `UISupportedInterfaceOrientations~ipad` 至少包含 `Landscape Left` 和 `Landscape Right`
-4. 用真机运行
+---
 
-App 启动后会扫描 BLE，并在横屏界面顶部显示可切换的 agent 分段控件。
-当 BLE 已连接时，App 会保持常亮；断联后会恢复系统自动熄屏。
-
-额度显示说明：
-
-- 如果 BLE 载荷里带 `quotas` 字段，App 会显示真实额度
-- 如果还没接真实额度，App 会先使用内置 fallback 数值做 UI 展示
-
-## 手动测试
-
-不用真正跑 Claude/Codex，也可以直接写状态文件测试：
-
-```bash
-echo working > ~/.claude-status
-echo idle > ~/.claude-status
-echo awaiting_approval > ~/.claude-status
-
-mkdir -p ~/.codex/agent-status
-echo working > ~/.codex/agent-status/status.txt
-echo idle > ~/.codex/agent-status/status.txt
-echo awaiting_approval > ~/.codex/agent-status/status.txt
-```
-
-## 关键文件
+## 目录结构
 
 ```text
-ios-app-src/AgentStatusMonitorApp.swift
-ios-app-src/ContentView.swift
-ios-app-src/BLEStatusMonitor.swift
-mac-beacon/Sources/AgentStatusBeacon/main.swift
-hooks/codex/
+AgentsMonitor/
+├── app/
+│   ├── Shared/          # 共享 Swift 代码（BLE、HTTP、USB、Tailscale 监听）
+│   ├── iOS26/           # iOS 26 SwiftUI app
+│   └── iOS12/           # iOS 12 UIKit app
+├── mac-beacon/          # macOS BLE 广播（Swift）
+├── ubuntu-beacon/       # Ubuntu HTTP 状态服务（Python）
+├── ubuntu-usb/          # Ubuntu USB 推送服务（Python）
+└── hooks/
+    ├── *.sh             # Claude Code hooks
+    └── codex/           # Codex hooks
 ```
+
+技术细节见 [ARCHITECTURE.md](ARCHITECTURE.md)。

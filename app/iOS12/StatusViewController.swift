@@ -7,6 +7,7 @@ final class StatusViewController: UIViewController {
     private var availableAgents: [String] = []
     private var selectedAgentID = "codex"
     private var quotas: QuotaSnapshot = .fallback
+    private var transportStatuses: [TransportStatus] = []
 
     // MARK: - Views
 
@@ -14,6 +15,7 @@ final class StatusViewController: UIViewController {
     private let statusLabel = UILabel()
     private let detailLabel = UILabel()
     private let connectionLabel = UILabel()
+    private let transportStatusLabel = UILabel()
 
     private let fiveHourTitleLabel = UILabel()
     private let fiveHourValueLabel = UILabel()
@@ -58,9 +60,14 @@ final class StatusViewController: UIViewController {
         connectionLabel.font = UIFont.systemFont(ofSize: 14, weight: .regular)
         connectionLabel.textAlignment = .center
 
-        let centerStack = UIStackView(arrangedSubviews: [statusLabel, detailLabel, connectionLabel])
+        transportStatusLabel.translatesAutoresizingMaskIntoConstraints = false
+        transportStatusLabel.font = UIFont.systemFont(ofSize: 13, weight: .medium)
+        transportStatusLabel.textAlignment = .center
+        transportStatusLabel.numberOfLines = 0
+
+        let centerStack = UIStackView(arrangedSubviews: [statusLabel, detailLabel, connectionLabel, transportStatusLabel])
         centerStack.axis = .vertical
-        centerStack.spacing = 10
+        centerStack.spacing = 8
         centerStack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(centerStack)
 
@@ -129,6 +136,58 @@ final class StatusViewController: UIViewController {
         let clamped = max(0, min(1, fraction))
         let hue = CGFloat(0.33 * clamped)
         return UIColor(hue: hue, saturation: 0.9, brightness: 0.95, alpha: 1.0)
+    }
+
+    private func transportStatusText() -> NSAttributedString {
+        let result = NSMutableAttributedString()
+
+        for (index, status) in transportStatuses.enumerated() {
+            if index > 0 {
+                result.append(NSAttributedString(string: "   "))
+            }
+
+            let dot = NSAttributedString(
+                string: "●",
+                attributes: [
+                    .foregroundColor: transportStatusColor(for: status.state),
+                    .font: UIFont.systemFont(ofSize: 13, weight: .bold),
+                ]
+            )
+            result.append(dot)
+
+            let text = NSAttributedString(
+                string: " \(status.name)\(transportStateText(for: status.state))",
+                attributes: [
+                    .foregroundColor: UIColor.black.withAlphaComponent(0.72),
+                    .font: UIFont.systemFont(ofSize: 13, weight: .medium),
+                ]
+            )
+            result.append(text)
+        }
+
+        return result
+    }
+
+    private func transportStatusColor(for state: TransportStatus.State) -> UIColor {
+        switch state {
+        case .connected:
+            return UIColor(red: 0.10, green: 0.72, blue: 0.30, alpha: 1.0)
+        case .disconnected:
+            return UIColor(red: 0.60, green: 0.60, blue: 0.64, alpha: 1.0)
+        case .unavailable:
+            return UIColor(red: 0.72, green: 0.62, blue: 0.16, alpha: 1.0)
+        }
+    }
+
+    private func transportStateText(for state: TransportStatus.State) -> String {
+        switch state {
+        case .connected:
+            return "已连接"
+        case .disconnected:
+            return "未连接"
+        case .unavailable:
+            return "未配置"
+        }
     }
 
     // MARK: - Working gradient
@@ -221,6 +280,7 @@ final class StatusViewController: UIViewController {
         statusLabel.text = statusTitle(for: status, agentName: agentName)
         detailLabel.text = statusDetail(for: status, agentName: agentName)
         connectionLabel.text = monitor.isConnected ? "BLE: Connected" : "BLE: Disconnected"
+        transportStatusLabel.attributedText = transportStatusText()
 
         // Agent picker
         if agentPicker.numberOfSegments != availableAgents.count {
@@ -291,6 +351,7 @@ final class StatusViewController: UIViewController {
 
 extension StatusViewController: StatusMonitorDelegate {
     func monitorDidConnect() {
+        transportStatuses = monitor.transportStatuses
         updateUI()
     }
 
@@ -298,6 +359,7 @@ extension StatusViewController: StatusMonitorDelegate {
         statuses = [:]
         availableAgents = []
         quotas = .fallback
+        transportStatuses = monitor.transportStatuses
         updateUI()
     }
 
@@ -314,6 +376,8 @@ extension StatusViewController: StatusMonitorDelegate {
         quotas = snapshot.quotas?.asQuotaSnapshot()
             ?? snapshot.codexQuota?.asQuotaSnapshot()
             ?? .fallback
+
+        transportStatuses = monitor.transportStatuses
 
         if !availableAgents.contains(selectedAgentID),
            let first = availableAgents.first {

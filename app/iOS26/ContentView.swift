@@ -380,6 +380,8 @@ struct ContentView: View {
                     .padding(.vertical, 6)
                     .background(Color.black.opacity(0.08))
                     .clipShape(Capsule())
+
+                transportStatusRow
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 26)
@@ -417,6 +419,18 @@ struct ContentView: View {
         }
     }
 
+    private var transportStatusRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(monitor.transportStatuses) { status in
+                    TransportStatusBadge(status: status)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .scrollDisabled(true)
+    }
+
     private func updateIdleTimer() {
         UIApplication.shared.isIdleTimerDisabled = monitor.isConnected
     }
@@ -449,11 +463,81 @@ private struct AgentTabPicker: View {
                                 }
                             }
                         )
+                        .contentShape(Rectangle())
                 }
+                .frame(maxWidth: .infinity, minHeight: 42)
                 .buttonStyle(.plain)
             }
         }
         .background(Color.black.opacity(0.09))
+        .clipShape(Capsule())
+    }
+}
+
+private struct TransportStatusBadge: View {
+    let status: TransportStatus
+
+    private var dotColor: Color {
+        switch status.state {
+        case .connected:
+            return Color(red: 0.10, green: 0.72, blue: 0.30)
+        case .disconnected:
+            return Color(red: 0.60, green: 0.60, blue: 0.64)
+        case .unavailable:
+            return Color(red: 0.72, green: 0.62, blue: 0.16)
+        }
+    }
+
+    private var fillColor: Color {
+        switch status.state {
+        case .connected:
+            return dotColor.opacity(0.14)
+        case .disconnected:
+            return Color.black.opacity(0.06)
+        case .unavailable:
+            return dotColor.opacity(0.14)
+        }
+    }
+
+    private var strokeColor: Color {
+        switch status.state {
+        case .connected:
+            return dotColor.opacity(0.32)
+        case .disconnected:
+            return Color.black.opacity(0.10)
+        case .unavailable:
+            return dotColor.opacity(0.28)
+        }
+    }
+
+    private var stateText: String {
+        switch status.state {
+        case .connected:
+            return "已连接"
+        case .disconnected:
+            return "未连接"
+        case .unavailable:
+            return "未配置"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 8, height: 8)
+
+            Text("\(status.name) \(stateText)")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(.black.opacity(0.72))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(fillColor)
+        .overlay(
+            Capsule()
+                .stroke(strokeColor, lineWidth: 1)
+        )
         .clipShape(Capsule())
     }
 }

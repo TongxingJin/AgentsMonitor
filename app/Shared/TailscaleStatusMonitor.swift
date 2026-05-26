@@ -3,6 +3,7 @@ import Foundation
 final class TailscaleStatusMonitor {
     weak var delegate: StatusMonitorDelegate?
     private(set) var isConnected = false
+    let host: String
 
     private let url: URL?
     private var pollTimer: Timer?
@@ -10,6 +11,7 @@ final class TailscaleStatusMonitor {
     private static let failureThreshold = 3
 
     init(host: String) {
+        self.host = host
         url = URL(string: "http://\(host):8765/status")
     }
 
