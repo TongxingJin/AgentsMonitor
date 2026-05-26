@@ -4,13 +4,13 @@ final class TailscaleStatusMonitor {
     weak var delegate: StatusMonitorDelegate?
     private(set) var isConnected = false
 
-    private let url: URL
+    private let url: URL?
     private var pollTimer: Timer?
     private var consecutiveFailures = 0
     private static let failureThreshold = 3
 
     init(host: String) {
-        url = URL(string: "http://\(host):8765/status")!
+        url = URL(string: "http://\(host):8765/status")
     }
 
     func start() {
@@ -31,6 +31,7 @@ final class TailscaleStatusMonitor {
     }
 
     private func poll() {
+        guard let url else { return }
         URLSession.shared.dataTask(with: url) { [weak self] data, response, _ in
             guard let self else { return }
             DispatchQueue.main.async {

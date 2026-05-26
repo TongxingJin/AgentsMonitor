@@ -33,6 +33,7 @@ After=ubuntu-iproxy.service
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 ${SCRIPT_DIR}/pusher.py
+Environment=PYTHONUNBUFFERED=1
 Restart=always
 RestartSec=3
 
