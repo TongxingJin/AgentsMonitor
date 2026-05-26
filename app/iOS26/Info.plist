@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string></string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Used for Agents status reception</string>
+	<key>CFBundleIdentifier</key>
+	<string></string>
+	<key>NSServices</key>
+	<array>
+		<dict/>
+	</array>
+</dict>
+</plist>

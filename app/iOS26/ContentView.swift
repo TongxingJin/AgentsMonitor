@@ -433,7 +433,7 @@ private enum QuotaDisplayMode {
 }
 
 struct ContentView: View {
-    @StateObject private var monitor = BLEStatusMonitor()
+    @StateObject private var monitor = BLEStatusViewModel()
     @State private var quotaDisplayMode: QuotaDisplayMode = .cylinder
 
     var body: some View {
