@@ -16,7 +16,7 @@ final class StatusAggregator: NSObject {
     weak var delegate: StatusMonitorDelegate?
 
     var isConnected: Bool {
-        bleMonitor.isConnected || httpMonitor.isConnected || usbMonitor.isConnected
+        bleMonitor.isConnected || usbMonitor.isConnected
             || tailscaleMonitors.contains { $0.isConnected }
     }
 
@@ -27,7 +27,6 @@ final class StatusAggregator: NSObject {
     var transportStatuses: [TransportStatus] {
         var statuses: [TransportStatus] = [
             TransportStatus(id: "ble", name: "BLE", state: bleMonitor.isConnected ? .connected : .disconnected),
-            TransportStatus(id: "lan", name: "局域网", state: httpMonitor.isConnected ? .connected : .disconnected),
             TransportStatus(id: "usb", name: "USB", state: usbMonitor.isConnected ? .connected : .disconnected),
         ]
 
@@ -44,20 +43,17 @@ final class StatusAggregator: NSObject {
     }
 
     private let bleMonitor = BLEStatusMonitor()
-    private let httpMonitor = HTTPStatusMonitor()
     private let usbMonitor = USBStatusMonitor()
     private var tailscaleMonitors: [TailscaleStatusMonitor] = []
     private var tailscaleProxies: [SourceProxy] = []
     private var snapshotBySource: [String: StatusSnapshot] = [:]
 
     private lazy var bleProxy = SourceProxy(sourceID: "ble", aggregator: self)
-    private lazy var httpProxy = SourceProxy(sourceID: "http", aggregator: self)
     private lazy var usbProxy = SourceProxy(sourceID: "usb", aggregator: self)
 
     override init() {
         super.init()
         bleMonitor.delegate = bleProxy
-        httpMonitor.delegate = httpProxy
         usbMonitor.delegate = usbProxy
     }
 
