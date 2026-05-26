@@ -28,7 +28,7 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
     }
 
     var currentStatus: AgentStatus {
-        statuses[selectedAgentID] ?? .unknown
+        statuses[selectedAgentID] ?? .idle
     }
 
     var selectedAgentName: String {

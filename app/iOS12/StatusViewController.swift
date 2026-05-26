@@ -117,12 +117,18 @@ final class StatusViewController: UIViewController {
         value.text = "--"
 
         progress.trackTintColor = UIColor.lightGray.withAlphaComponent(0.3)
-        progress.progressTintColor = .systemGreen
+        progress.progressTintColor = quotaColor(for: 1.0)
 
         let stack = UIStackView(arrangedSubviews: [title, value, progress])
         stack.axis = .vertical
         stack.spacing = 4
         return stack
+    }
+
+    private func quotaColor(for fraction: Double) -> UIColor {
+        let clamped = max(0, min(1, fraction))
+        let hue = CGFloat(0.33 * clamped)
+        return UIColor(hue: hue, saturation: 0.9, brightness: 0.95, alpha: 1.0)
     }
 
     // MARK: - Working gradient
@@ -193,7 +199,7 @@ final class StatusViewController: UIViewController {
     // MARK: - Updates
 
     private func updateUI() {
-        let status = statuses[selectedAgentID] ?? .unknown
+        let status = statuses[selectedAgentID] ?? .idle
         let agentName = StatusAggregator.displayName(for: selectedAgentID)
 
         // Background color
@@ -231,16 +237,18 @@ final class StatusViewController: UIViewController {
         // Quota
         fiveHourProgress.setProgress(Float(quotas.fiveHourFraction), animated: true)
         sevenDayProgress.setProgress(Float(quotas.sevenDayFraction), animated: true)
+        fiveHourProgress.progressTintColor = quotaColor(for: quotas.fiveHourFraction)
+        sevenDayProgress.progressTintColor = quotaColor(for: quotas.sevenDayFraction)
 
         if let hours = quotas.fiveHourRemainingHours {
             fiveHourValueLabel.text = String(format: "%.1fh (%.0f%%)", hours, quotas.fiveHourFraction * 100)
         } else {
-            fiveHourValueLabel.text = "--"
+            fiveHourValueLabel.text = String(format: "%.0f%%", quotas.fiveHourFraction * 100)
         }
         if let days = quotas.sevenDayRemainingDays {
             sevenDayValueLabel.text = String(format: "%.1fd (%.0f%%)", days, quotas.sevenDayFraction * 100)
         } else {
-            sevenDayValueLabel.text = "--"
+            sevenDayValueLabel.text = String(format: "%.0f%%", quotas.sevenDayFraction * 100)
         }
     }
 

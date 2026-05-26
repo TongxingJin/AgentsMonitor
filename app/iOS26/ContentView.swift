@@ -272,6 +272,7 @@ struct ContentView: View {
                     .padding(.bottom, 18)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .onAppear {
             updateIdleTimer()
