@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Swift build artifacts
+mac-beacon/.build/
+mac-beacon/AgentStatusBeacon
+
+# Python
+__pycache__/
+*.pyc
+
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# Temp
+.tmp/
