@@ -9,10 +9,22 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
     @Published var quotas: QuotaSnapshot = .fallback
 
     private let monitor = StatusAggregator()
+    private static let hostsKey = "tailscaleHosts"
+
+    var tailscaleHosts: [String] {
+        (UserDefaults.standard.string(forKey: Self.hostsKey) ?? "")
+            .split(separator: "\n").map(String.init).filter { !$0.isEmpty }
+    }
 
     override init() {
         super.init()
         monitor.delegate = self
+        monitor.setTailscaleHosts(tailscaleHosts)
+    }
+
+    func applyTailscaleHosts(_ hosts: [String]) {
+        UserDefaults.standard.set(hosts.joined(separator: "\n"), forKey: Self.hostsKey)
+        monitor.setTailscaleHosts(hosts)
     }
 
     var currentStatus: AgentStatus {

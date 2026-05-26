@@ -435,6 +435,7 @@ private enum QuotaDisplayMode {
 struct ContentView: View {
     @StateObject private var monitor = BLEStatusViewModel()
     @State private var quotaDisplayMode: QuotaDisplayMode = .cylinder
+    @State private var showingTailscaleSettings = false
 
     var body: some View {
         ZStack {
@@ -466,6 +467,23 @@ struct ContentView: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+
+                    Button {
+                        showingTailscaleSettings = true
+                    } label: {
+                        Image(systemName: "network")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.black.opacity(0.78))
+                            .frame(width: 38, height: 38)
+                            .background(Color.black.opacity(0.08))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $showingTailscaleSettings) {
+                        TailscaleSettingsView(initialHosts: monitor.tailscaleHosts) { hosts in
+                            monitor.applyTailscaleHosts(hosts)
+                        }
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 10)
@@ -607,7 +625,7 @@ struct ContentView: View {
                     .font(.system(size: 22, weight: .medium, design: .rounded))
                     .foregroundColor(.black.opacity(0.72))
 
-                Text(monitor.isConnected ? "BLE: Connected" : "BLE: Disconnected")
+                Text(monitor.isConnected ? "Connected" : "Scanning…")
                     .font(.system(size: 15, weight: .regular, design: .rounded))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)

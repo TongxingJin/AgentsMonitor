@@ -3,7 +3,10 @@ import Foundation
 final class StatusAggregator: NSObject {
     weak var delegate: StatusMonitorDelegate?
 
-    var isConnected: Bool { bleMonitor.isConnected || httpMonitor.isConnected || usbMonitor.isConnected }
+    var isConnected: Bool {
+        bleMonitor.isConnected || httpMonitor.isConnected || usbMonitor.isConnected
+            || tailscaleMonitors.contains { $0.isConnected }
+    }
 
     static func displayName(for agentID: String) -> String {
         BLEStatusMonitor.displayName(for: agentID)
@@ -12,6 +15,8 @@ final class StatusAggregator: NSObject {
     private let bleMonitor = BLEStatusMonitor()
     private let httpMonitor = HTTPStatusMonitor()
     private let usbMonitor = USBStatusMonitor()
+    private var tailscaleMonitors: [TailscaleStatusMonitor] = []
+    private var tailscaleProxies: [SourceProxy] = []
     private var snapshotBySource: [String: StatusSnapshot] = [:]
 
     private lazy var bleProxy = SourceProxy(sourceID: "ble", aggregator: self)
@@ -23,6 +28,23 @@ final class StatusAggregator: NSObject {
         bleMonitor.delegate = bleProxy
         httpMonitor.delegate = httpProxy
         usbMonitor.delegate = usbProxy
+    }
+
+    func setTailscaleHosts(_ hosts: [String]) {
+        tailscaleMonitors.forEach { $0.stop() }
+        tailscaleMonitors = []
+        tailscaleProxies = []
+        snapshotBySource = snapshotBySource.filter { !$0.key.hasPrefix("tailscale:") }
+
+        for host in hosts where !host.isEmpty {
+            let sourceID = "tailscale:\(host)"
+            let monitor = TailscaleStatusMonitor(host: host)
+            let proxy = SourceProxy(sourceID: sourceID, aggregator: self)
+            monitor.delegate = proxy
+            monitor.start()
+            tailscaleMonitors.append(monitor)
+            tailscaleProxies.append(proxy)
+        }
     }
 
     fileprivate func received(_ snapshot: StatusSnapshot, from sourceID: String) {
