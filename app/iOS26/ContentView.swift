@@ -75,28 +75,16 @@ private struct WorkingRingsBackground: View {
 }
 
 private struct ApprovalPulseBackground: View {
+    @State private var dimmed = false
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
-            let time = timeline.date.timeIntervalSinceReferenceDate
-            let pulse = (sin(time * 3.2) + 1.0) / 2.0
-            let baseRed = Color(red: 0.82, green: 0.12, blue: 0.16)
-            let brightRed = Color(red: 0.98, green: 0.24, blue: 0.22)
-
-            ZStack {
-                baseRed
-
-                Rectangle()
-                    .fill(brightRed.opacity(0.28 + pulse * 0.42))
-                    .blur(radius: 8 + pulse * 10)
-                    .scaleEffect(1.02 + pulse * 0.03)
-
-                Circle()
-                    .fill(Color.white.opacity(0.08 + pulse * 0.10))
-                    .frame(width: 420 + pulse * 120, height: 420 + pulse * 120)
-                    .blur(radius: 24)
-                    .offset(x: 160, y: -120)
+        Rectangle()
+            .fill(dimmed ? Color(red: 0.55, green: 0.0, blue: 0.0) : Color.red)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                    dimmed = true
+                }
             }
-        }
     }
 }
 
@@ -218,223 +206,8 @@ private struct QuotaCylinderView: View {
     }
 }
 
-private struct QuotaGaugeView: View {
-    let title: String
-    let valueText: String
-    let percentText: String
-    let fraction: Double
-
-    private var clampedFraction: Double {
-        min(max(fraction, 0.0), 1.0)
-    }
-
-    private var progressColor: Color {
-        switch clampedFraction {
-        case ..<0.2:
-            return Color(red: 0.82, green: 0.16, blue: 0.18)
-        case ..<0.4:
-            return Color(red: 0.92, green: 0.36, blue: 0.18)
-        case ..<0.65:
-            return Color(red: 0.95, green: 0.70, blue: 0.18)
-        case ..<0.85:
-            return Color(red: 0.52, green: 0.78, blue: 0.22)
-        default:
-            return Color(red: 0.16, green: 0.70, blue: 0.34)
-        }
-    }
-
-    private var startAngle: Double { 160 }
-    private var sweepAngle: Double { 220 }
-    private var needleAngle: Double { startAngle + sweepAngle * clampedFraction }
-
-    private var progressGradient: AngularGradient {
-        AngularGradient(
-            gradient: Gradient(colors: [
-                Color(red: 0.84, green: 0.18, blue: 0.20),
-                Color(red: 0.95, green: 0.72, blue: 0.18),
-                Color(red: 0.18, green: 0.72, blue: 0.34)
-            ]),
-            center: .center,
-            startAngle: .degrees(startAngle),
-            endAngle: .degrees(startAngle + sweepAngle)
-        )
-    }
-
-    var body: some View {
-        GeometryReader { geometry in
-            let side = min(geometry.size.width, geometry.size.height)
-            let dialWidth = side * 0.98
-            let dialHeight = side * 0.72
-            let lineWidth = max(12.0, side * 0.09)
-
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundColor(.black.opacity(0.72))
-
-                ZStack {
-                    RoundedRectangle(cornerRadius: dialWidth * 0.18, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.98),
-                                    Color(red: 0.96, green: 0.97, blue: 0.99)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: dialWidth * 0.18, style: .continuous)
-                                .stroke(Color.white.opacity(0.92), lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.08), radius: 16, y: 8)
-
-                    GaugeTicks(startAngle: startAngle, sweepAngle: sweepAngle)
-                        .stroke(Color.black.opacity(0.14), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .padding(side * 0.09)
-
-                    GaugeArc(startAngle: startAngle, endAngle: startAngle + sweepAngle)
-                        .stroke(Color.black.opacity(0.08), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                        .padding(side * 0.12)
-
-                    GaugeArc(startAngle: startAngle, endAngle: needleAngle)
-                        .stroke(progressGradient, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                        .padding(side * 0.12)
-                        .shadow(color: progressColor.opacity(0.28), radius: 8)
-
-                    GaugeNeedle(angle: needleAngle)
-                        .fill(Color.black.opacity(0.82))
-                        .frame(width: dialWidth * 0.05, height: dialHeight * 0.54)
-
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: side * 0.12, height: side * 0.12)
-                        .overlay(
-                            Circle()
-                                .fill(progressColor)
-                                .frame(width: side * 0.06, height: side * 0.06)
-                        )
-                        .shadow(color: Color.black.opacity(0.10), radius: 6, y: 2)
-
-                    VStack(spacing: 2) {
-                        Text(percentText)
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .foregroundColor(.black)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-
-                        Text(valueText)
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundColor(.black.opacity(0.65))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .offset(y: dialHeight * 0.24)
-                }
-                .frame(width: dialWidth, height: dialHeight)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        }
-    }
-}
-
-private struct GaugeArc: Shape {
-    let startAngle: Double
-    let endAngle: Double
-
-    func path(in rect: CGRect) -> Path {
-        let radius = min(rect.width, rect.height) / 2
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        var path = Path()
-        path.addArc(
-            center: center,
-            radius: radius,
-            startAngle: .degrees(startAngle),
-            endAngle: .degrees(endAngle),
-            clockwise: false
-        )
-        return path
-    }
-}
-
-private struct GaugeNeedle: Shape {
-    let angle: Double
-
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.maxY - rect.height * 0.10)
-        let top = CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.06)
-        let left = CGPoint(x: rect.midX - rect.width * 0.40, y: rect.maxY - rect.height * 0.18)
-        let right = CGPoint(x: rect.midX + rect.width * 0.40, y: rect.maxY - rect.height * 0.18)
-
-        var path = Path()
-        path.move(to: top)
-        path.addLine(to: right)
-        path.addQuadCurve(to: left, control: CGPoint(x: rect.midX, y: rect.maxY))
-        path.closeSubpath()
-
-        let transform = CGAffineTransform(translationX: center.x, y: center.y)
-            .rotated(by: CGFloat((angle - 90) * .pi / 180))
-            .translatedBy(x: -center.x, y: -center.y)
-        return path.applying(transform)
-    }
-}
-
-private struct GaugeTicks: Shape {
-    let startAngle: Double
-    let sweepAngle: Double
-
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2
-        let tickCount = 14
-        var path = Path()
-
-        for index in 0...tickCount {
-            let angle = (startAngle + (sweepAngle / Double(tickCount)) * Double(index)) * .pi / 180
-            let isMajor = index % 2 == 0
-            let outer = CGPoint(
-                x: center.x + cos(angle) * radius,
-                y: center.y + sin(angle) * radius
-            )
-            let inner = CGPoint(
-                x: center.x + cos(angle) * (radius - (isMajor ? 13 : 7)),
-                y: center.y + sin(angle) * (radius - (isMajor ? 13 : 7))
-            )
-            path.move(to: inner)
-            path.addLine(to: outer)
-        }
-
-        return path
-    }
-}
-
-private enum QuotaDisplayMode {
-    case cylinder
-    case gauge
-
-    var toggleIconName: String {
-        switch self {
-        case .cylinder:
-            return "gauge.with.dots.needle.33percent"
-        case .gauge:
-            return "chart.bar.xaxis"
-        }
-    }
-
-    var next: QuotaDisplayMode {
-        switch self {
-        case .cylinder:
-            return .gauge
-        case .gauge:
-            return .cylinder
-        }
-    }
-}
-
 struct ContentView: View {
     @StateObject private var monitor = BLEStatusViewModel()
-    @State private var quotaDisplayMode: QuotaDisplayMode = .cylinder
     @State private var showingTailscaleSettings = false
 
     var body: some View {
@@ -453,20 +226,6 @@ struct ContentView: View {
                             )
                         )
                     }
-
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            quotaDisplayMode = quotaDisplayMode.next
-                        }
-                    } label: {
-                        Image(systemName: quotaDisplayMode.toggleIconName)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.black.opacity(0.78))
-                            .frame(width: 38, height: 38)
-                            .background(Color.black.opacity(0.08))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
 
                     Button {
                         showingTailscaleSettings = true
@@ -522,29 +281,18 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
     private func quotaView(
         title: String,
         valueText: String,
         percentText: String,
         fraction: Double
     ) -> some View {
-        switch quotaDisplayMode {
-        case .cylinder:
-            QuotaCylinderView(
-                title: title,
-                valueText: valueText,
-                percentText: percentText,
-                fraction: fraction
-            )
-        case .gauge:
-            QuotaGaugeView(
-                title: title,
-                valueText: valueText,
-                percentText: percentText,
-                fraction: fraction
-            )
-        }
+        QuotaCylinderView(
+            title: title,
+            valueText: valueText,
+            percentText: percentText,
+            fraction: fraction
+        )
     }
 
     private var currentStatus: AgentStatus {

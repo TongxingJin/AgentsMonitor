@@ -8,4 +8,6 @@ write_status "idle"
 
 # Refresh quota in background. read_quota.py uses CODEX_QUOTA_CHECK=1
 # so no hooks fire and no tokens are consumed.
-python3 "$SCRIPT_DIR/read_quota.py" &>/dev/null &
+# Set QUOTA_PUSH_URL (e.g. in ~/.zshrc) to push quota to ubuntu-beacon:
+#   export QUOTA_PUSH_URL="http://100.91.235.49:8765/quota"
+QUOTA_PUSH_URL="${QUOTA_PUSH_URL:-}" python3 "$SCRIPT_DIR/read_quota.py" &>/dev/null &

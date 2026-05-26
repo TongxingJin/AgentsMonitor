@@ -15,16 +15,28 @@ struct TailscaleSettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(hosts, id: \.self) { host in
-                        Text(host)
+                    ForEach(Array(hosts.indices), id: \.self) { i in
+                        HStack {
+                            TextField("IP 或 hostname", text: Binding(
+                                get: { hosts[i] },
+                                set: { hosts[i] = $0 }
+                            ))
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
                             .font(.system(.body, design: .monospaced))
-                    }
-                    .onDelete { indexSet in
-                        hosts.remove(atOffsets: indexSet)
+
+                            Button {
+                                hosts.remove(at: i)
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
 
                     HStack {
-                        TextField("100.x.x.x 或 hostname", text: $newHost)
+                        TextField("添加：100.x.x.x 或 hostname", text: $newHost)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
 
@@ -39,7 +51,7 @@ struct TailscaleSettingsView: View {
                 } header: {
                     Text("Tailscale 主机")
                 } footer: {
-                    Text("输入运行 beacon 的机器的 Tailscale IP 或 MagicDNS hostname，自动使用端口 8765。")
+                    Text("点击 IP 可直接修改，垃圾桶删除。自动使用端口 8765。")
                 }
             }
             .navigationTitle("Tailscale")

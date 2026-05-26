@@ -218,6 +218,17 @@ def main():
                 payload["weeklyFraction"],
             )
         )
+
+        push_url = os.environ.get("QUOTA_PUSH_URL")
+        if push_url:
+            import urllib.request
+            try:
+                data = json.dumps(payload).encode()
+                req = urllib.request.Request(push_url, data=data, method="POST")
+                req.add_header("Content-Type", "application/json")
+                urllib.request.urlopen(req, timeout=5)
+            except Exception:
+                pass
     finally:
         try:
             os.remove(LOCK_FILE)

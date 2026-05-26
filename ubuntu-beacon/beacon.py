@@ -91,6 +91,23 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+    def do_POST(self):
+        if self.path == "/quota":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            try:
+                data = json.loads(body)
+                QUOTA_FILE.parent.mkdir(parents=True, exist_ok=True)
+                QUOTA_FILE.write_text(json.dumps(data))
+                self.send_response(200)
+                self.end_headers()
+            except (json.JSONDecodeError, OSError):
+                self.send_response(400)
+                self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
     def log_message(self, format, *args):
         pass  # suppress per-request logs
 
