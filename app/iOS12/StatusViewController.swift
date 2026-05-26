@@ -1,7 +1,7 @@
 import UIKit
 
 final class StatusViewController: UIViewController {
-    private let monitor = BLEStatusMonitor()
+    private let monitor = StatusAggregator()
 
     private var statuses: [String: AgentStatus] = [:]
     private var availableAgents: [String] = []
@@ -194,7 +194,7 @@ final class StatusViewController: UIViewController {
 
     private func updateUI() {
         let status = statuses[selectedAgentID] ?? .unknown
-        let agentName = BLEStatusMonitor.displayName(for: selectedAgentID)
+        let agentName = StatusAggregator.displayName(for: selectedAgentID)
 
         // Background color
         if status == .awaitingApproval {
@@ -220,7 +220,7 @@ final class StatusViewController: UIViewController {
         if agentPicker.numberOfSegments != availableAgents.count {
             agentPicker.removeAllSegments()
             for (i, id) in availableAgents.enumerated() {
-                agentPicker.insertSegment(withTitle: BLEStatusMonitor.displayName(for: id), at: i, animated: false)
+                agentPicker.insertSegment(withTitle: StatusAggregator.displayName(for: id), at: i, animated: false)
             }
         }
         if let idx = availableAgents.firstIndex(of: selectedAgentID) {
@@ -279,43 +279,39 @@ final class StatusViewController: UIViewController {
     }
 }
 
-// MARK: - BLEStatusMonitorDelegate
+// MARK: - StatusMonitorDelegate
 
-extension StatusViewController: BLEStatusMonitorDelegate {
-    func monitorDidConnect(_ monitor: BLEStatusMonitor) {
-        DispatchQueue.main.async { self.updateUI() }
+extension StatusViewController: StatusMonitorDelegate {
+    func monitorDidConnect() {
+        updateUI()
     }
 
-    func monitorDidDisconnect(_ monitor: BLEStatusMonitor) {
-        DispatchQueue.main.async {
-            self.statuses = [:]
-            self.availableAgents = []
-            self.quotas = .fallback
-            self.updateUI()
-        }
+    func monitorDidDisconnect() {
+        statuses = [:]
+        availableAgents = []
+        quotas = .fallback
+        updateUI()
     }
 
-    func monitor(_ monitor: BLEStatusMonitor, didReceive snapshot: StatusSnapshot) {
-        DispatchQueue.main.async {
-            self.statuses = snapshot.agents
+    func monitorDidReceive(_ snapshot: StatusSnapshot) {
+        statuses = snapshot.agents
 
-            let order = ["codex", "claude"]
-            self.availableAgents = snapshot.agents.keys.sorted {
-                let i0 = order.firstIndex(of: $0) ?? Int.max
-                let i1 = order.firstIndex(of: $1) ?? Int.max
-                return i0 < i1
-            }
-
-            self.quotas = snapshot.quotas?.asQuotaSnapshot()
-                ?? snapshot.codexQuota?.asQuotaSnapshot()
-                ?? .fallback
-
-            if !self.availableAgents.contains(self.selectedAgentID),
-               let first = self.availableAgents.first {
-                self.selectedAgentID = first
-            }
-
-            self.updateUI()
+        let order = ["codex", "claude"]
+        availableAgents = snapshot.agents.keys.sorted {
+            let i0 = order.firstIndex(of: $0) ?? Int.max
+            let i1 = order.firstIndex(of: $1) ?? Int.max
+            return i0 < i1
         }
+
+        quotas = snapshot.quotas?.asQuotaSnapshot()
+            ?? snapshot.codexQuota?.asQuotaSnapshot()
+            ?? .fallback
+
+        if !availableAgents.contains(selectedAgentID),
+           let first = availableAgents.first {
+            selectedAgentID = first
+        }
+
+        updateUI()
     }
 }

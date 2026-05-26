@@ -8,7 +8,7 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
     @Published var isConnected = false
     @Published var quotas: QuotaSnapshot = .fallback
 
-    private let monitor = BLEStatusMonitor()
+    private let monitor = StatusAggregator()
 
     override init() {
         super.init()
@@ -20,7 +20,7 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
     }
 
     var selectedAgentName: String {
-        BLEStatusMonitor.displayName(for: selectedAgentID)
+        StatusAggregator.displayName(for: selectedAgentID)
     }
 
     func selectAgent(_ id: String) {
@@ -28,19 +28,19 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
     }
 }
 
-extension BLEStatusViewModel: BLEStatusMonitorDelegate {
-    func monitorDidConnect(_ monitor: BLEStatusMonitor) {
+extension BLEStatusViewModel: StatusMonitorDelegate {
+    func monitorDidConnect() {
         isConnected = true
     }
 
-    func monitorDidDisconnect(_ monitor: BLEStatusMonitor) {
+    func monitorDidDisconnect() {
         isConnected = false
         statuses = [:]
         availableAgents = []
         quotas = .fallback
     }
 
-    func monitor(_ monitor: BLEStatusMonitor, didReceive snapshot: StatusSnapshot) {
+    func monitorDidReceive(_ snapshot: StatusSnapshot) {
         statuses = snapshot.agents
 
         let order = ["codex", "claude"]

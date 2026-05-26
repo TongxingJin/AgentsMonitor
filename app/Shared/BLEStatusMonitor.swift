@@ -1,14 +1,14 @@
 import Foundation
 import CoreBluetooth
 
-protocol BLEStatusMonitorDelegate: AnyObject {
-    func monitorDidConnect(_ monitor: BLEStatusMonitor)
-    func monitorDidDisconnect(_ monitor: BLEStatusMonitor)
-    func monitor(_ monitor: BLEStatusMonitor, didReceive snapshot: StatusSnapshot)
+protocol StatusMonitorDelegate: AnyObject {
+    func monitorDidConnect()
+    func monitorDidDisconnect()
+    func monitorDidReceive(_ snapshot: StatusSnapshot)
 }
 
 final class BLEStatusMonitor: NSObject {
-    weak var delegate: BLEStatusMonitorDelegate?
+    weak var delegate: StatusMonitorDelegate?
     private(set) var isConnected = false
 
     private var central: CBCentralManager!
@@ -30,11 +30,11 @@ final class BLEStatusMonitor: NSObject {
     private func notify(data: Data?) {
         if let data,
            let snapshot = try? JSONDecoder().decode(StatusSnapshot.self, from: data) {
-            delegate?.monitor(self, didReceive: snapshot)
+            delegate?.monitorDidReceive(snapshot)
             return
         }
         let legacyStatus = AgentStatus.from(data: data)
-        delegate?.monitor(self, didReceive: StatusSnapshot(
+        delegate?.monitorDidReceive(StatusSnapshot(
             version: 1,
             agents: ["claude": legacyStatus],
             quotas: nil,
@@ -63,7 +63,7 @@ extension BLEStatusMonitor: CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         isConnected = true
-        delegate?.monitorDidConnect(self)
+        delegate?.monitorDidConnect()
         peripheral.discoverServices([bleServiceUUID])
     }
 
@@ -73,7 +73,7 @@ extension BLEStatusMonitor: CBCentralManagerDelegate {
         error: Error?
     ) {
         isConnected = false
-        delegate?.monitorDidDisconnect(self)
+        delegate?.monitorDidDisconnect()
         central.scanForPeripherals(withServices: [bleServiceUUID], options: nil)
     }
 }
