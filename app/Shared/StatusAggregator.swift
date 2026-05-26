@@ -47,6 +47,7 @@ final class StatusAggregator: NSObject {
     private var tailscaleMonitors: [TailscaleStatusMonitor] = []
     private var tailscaleProxies: [SourceProxy] = []
     private var snapshotBySource: [String: StatusSnapshot] = [:]
+    private var sourceRecency: [String] = []
 
     private lazy var bleProxy = SourceProxy(sourceID: "ble", aggregator: self)
     private lazy var usbProxy = SourceProxy(sourceID: "usb", aggregator: self)
@@ -62,6 +63,7 @@ final class StatusAggregator: NSObject {
         tailscaleMonitors = []
         tailscaleProxies = []
         snapshotBySource = snapshotBySource.filter { !$0.key.hasPrefix("tailscale:") }
+        sourceRecency.removeAll { $0.hasPrefix("tailscale:") }
 
         for host in hosts where !host.isEmpty {
             let sourceID = "tailscale:\(host)"
@@ -76,11 +78,14 @@ final class StatusAggregator: NSObject {
 
     fileprivate func received(_ snapshot: StatusSnapshot, from sourceID: String) {
         snapshotBySource[sourceID] = snapshot
+        sourceRecency.removeAll { $0 == sourceID }
+        sourceRecency.append(sourceID)
         delegate?.monitorDidReceive(merged())
     }
 
     fileprivate func disconnected(from sourceID: String) {
         snapshotBySource.removeValue(forKey: sourceID)
+        sourceRecency.removeAll { $0 == sourceID }
         if !isConnected {
             delegate?.monitorDidDisconnect()
         } else {
@@ -90,11 +95,26 @@ final class StatusAggregator: NSObject {
 
     private func merged() -> StatusSnapshot {
         var agents: [String: AgentStatus] = [:]
-        for s in snapshotBySource.values {
-            agents.merge(s.agents) { _, new in new }
+        for sourceID in sourceRecency {
+            guard let snapshot = snapshotBySource[sourceID] else { continue }
+            agents.merge(snapshot.agents) { _, new in new }
         }
-        let quotas = snapshotBySource.values.compactMap { $0.quotas }.first
-        let codexQuota = snapshotBySource.values.compactMap { $0.codexQuota }.first
+
+        var quotas: BroadcastQuotaSnapshot?
+        var codexQuota: LegacyCodexQuotaSnapshot?
+        for sourceID in sourceRecency.reversed() {
+            guard let snapshot = snapshotBySource[sourceID] else { continue }
+            if quotas == nil, let candidate = snapshot.quotas {
+                quotas = candidate
+            }
+            if codexQuota == nil, let candidate = snapshot.codexQuota {
+                codexQuota = candidate
+            }
+            if quotas != nil && codexQuota != nil {
+                break
+            }
+        }
+
         return StatusSnapshot(version: 1, agents: agents, quotas: quotas, codexQuota: codexQuota)
     }
 }

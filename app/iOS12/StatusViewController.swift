@@ -14,7 +14,6 @@ final class StatusViewController: UIViewController {
     private let agentPicker = UISegmentedControl()
     private let statusLabel = UILabel()
     private let detailLabel = UILabel()
-    private let connectionLabel = UILabel()
     private let transportStatusLabel = UILabel()
 
     private let fiveHourTitleLabel = UILabel()
@@ -56,16 +55,12 @@ final class StatusViewController: UIViewController {
         detailLabel.textAlignment = .center
         detailLabel.numberOfLines = 2
 
-        connectionLabel.translatesAutoresizingMaskIntoConstraints = false
-        connectionLabel.font = UIFont.systemFont(ofSize: 14, weight: .regular)
-        connectionLabel.textAlignment = .center
-
         transportStatusLabel.translatesAutoresizingMaskIntoConstraints = false
         transportStatusLabel.font = UIFont.systemFont(ofSize: 13, weight: .medium)
         transportStatusLabel.textAlignment = .center
         transportStatusLabel.numberOfLines = 0
 
-        let centerStack = UIStackView(arrangedSubviews: [statusLabel, detailLabel, connectionLabel, transportStatusLabel])
+        let centerStack = UIStackView(arrangedSubviews: [statusLabel, detailLabel, transportStatusLabel])
         centerStack.axis = .vertical
         centerStack.spacing = 8
         centerStack.translatesAutoresizingMaskIntoConstraints = false
@@ -279,7 +274,6 @@ final class StatusViewController: UIViewController {
         // Labels
         statusLabel.text = statusTitle(for: status, agentName: agentName)
         detailLabel.text = statusDetail(for: status, agentName: agentName)
-        connectionLabel.text = monitor.isConnected ? "BLE: Connected" : "BLE: Disconnected"
         transportStatusLabel.attributedText = transportStatusText()
 
         // Agent picker

@@ -374,13 +374,6 @@ struct ContentView: View {
                     .font(.system(size: 22, weight: .medium, design: .rounded))
                     .foregroundColor(.black.opacity(0.72))
 
-                Text(monitor.isConnected ? "Connected" : "Scanning…")
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.08))
-                    .clipShape(Capsule())
-
                 transportStatusRow
             }
             .padding(.horizontal, 20)
