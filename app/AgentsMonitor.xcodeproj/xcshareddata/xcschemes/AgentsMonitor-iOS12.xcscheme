@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "3CF8B4732FC56DF800A19F36"
-               BuildableName = "AgentsMonitor.app"
+               BuildableName = "AgentsMonitor-iOS12.app"
                BlueprintName = "AgentsMonitor-iOS12"
                ReferencedContainer = "container:AgentsMonitor.xcodeproj">
             </BuildableReference>
@@ -46,7 +46,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3CF8B4732FC56DF800A19F36"
-            BuildableName = "AgentsMonitor.app"
+            BuildableName = "AgentsMonitor-iOS12.app"
             BlueprintName = "AgentsMonitor-iOS12"
             ReferencedContainer = "container:AgentsMonitor.xcodeproj">
          </BuildableReference>
@@ -63,7 +63,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "3CF8B4732FC56DF800A19F36"
-            BuildableName = "AgentsMonitor.app"
+            BuildableName = "AgentsMonitor-iOS12.app"
             BlueprintName = "AgentsMonitor-iOS12"
             ReferencedContainer = "container:AgentsMonitor.xcodeproj">
          </BuildableReference>
