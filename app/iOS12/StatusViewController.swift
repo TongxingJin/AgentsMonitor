@@ -17,6 +17,7 @@ final class StatusViewController: UIViewController {
     private let statusLabel = UILabel()
     private let detailLabel = UILabel()
     private let transportStatusLabel = UILabel()
+    private let versionLabel = UILabel()
 
     private let fiveHourTitleLabel = UILabel()
     private let fiveHourValueLabel = UILabel()
@@ -89,6 +90,12 @@ final class StatusViewController: UIViewController {
         quotaRow.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(quotaRow)
 
+        versionLabel.text = appVersion
+        versionLabel.font = UIFont.monospacedSystemFont(ofSize: 10, weight: .regular)
+        versionLabel.textColor = UIColor.black.withAlphaComponent(0.25)
+        versionLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(versionLabel)
+
         // Layout
         NSLayoutConstraint.activate([
             agentPicker.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
@@ -103,6 +110,9 @@ final class StatusViewController: UIViewController {
             quotaRow.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             quotaRow.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
             quotaRow.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+
+            versionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+            versionLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -4),
         ])
     }
 

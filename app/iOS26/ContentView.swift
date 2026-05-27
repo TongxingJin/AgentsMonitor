@@ -274,6 +274,13 @@ struct ContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .overlay(
+            Text(appVersion)
+                .font(.system(size: 10, weight: .regular, design: .monospaced))
+                .foregroundColor(.black.opacity(0.25))
+                .padding(8),
+            alignment: .bottomTrailing
+        )
         .onAppear {
             updateIdleTimer()
         }

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Update AppVersion.swift with the current HEAD short hash before each commit.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+VERSION_FILE="$REPO_ROOT/app/Shared/AppVersion.swift"
+SHORT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
+
+cat > "$VERSION_FILE" << EOF
+import Foundation
+
+let appVersion = "$SHORT_HASH"
+EOF
+
+git add "$VERSION_FILE"

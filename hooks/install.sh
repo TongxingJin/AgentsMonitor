@@ -61,6 +61,11 @@ touch "$HOME/.claude-status"
 mkdir -p "$HOME/.codex/agent-status"
 [ -s "$HOME/.codex/agent-status/status.txt" ] || echo "idle" > "$HOME/.codex/agent-status/status.txt"
 
+echo "==> Installing git pre-commit hook"
+GIT_HOOK="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)/.git/hooks/pre-commit"
+cp "$SCRIPT_DIR/pre-commit" "$GIT_HOOK"
+chmod +x "$GIT_HOOK"
+
 echo "==> Installing Codex hook scripts"
 "$CODEX_INSTALLER"
 
