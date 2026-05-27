@@ -149,7 +149,8 @@ final class MultiAgentStatusSource {
                 weeklyFraction: legacyQuota.weeklyFraction,
                 fiveHourRemainingHours: nil,
                 sevenDayRemainingDays: nil,
-                source: "legacy-codex-quota"
+                source: "legacy-codex-quota",
+                quotaUpdatedAt: legacyQuota.quotaUpdatedAt
             )
         }
         return nil
