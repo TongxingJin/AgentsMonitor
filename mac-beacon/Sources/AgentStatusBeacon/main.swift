@@ -24,6 +24,7 @@ enum AgentStatus: String, Codable {
 struct CodexQuota: Codable, Equatable {
     let fiveHourFraction: Double
     let weeklyFraction: Double
+    let quotaUpdatedAt: Double?
 }
 
 struct BroadcastQuota: Codable, Equatable {
@@ -39,6 +40,7 @@ struct StoredCodexQuota: Codable, Equatable {
     let fiveHourRemainingHours: Double?
     let sevenDayRemainingDays: Double?
     let source: String?
+    let quotaUpdatedAt: Double?
 
     var legacyQuota: CodexQuota? {
         guard let fiveHourFraction, let weeklyFraction else {
@@ -46,7 +48,8 @@ struct StoredCodexQuota: Codable, Equatable {
         }
         return CodexQuota(
             fiveHourFraction: fiveHourFraction,
-            weeklyFraction: weeklyFraction
+            weeklyFraction: weeklyFraction,
+            quotaUpdatedAt: quotaUpdatedAt
         )
     }
 

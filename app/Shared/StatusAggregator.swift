@@ -49,6 +49,9 @@ final class StatusAggregator: NSObject {
     private var snapshotBySource: [String: StatusSnapshot] = [:]
     private var sourceRecency: [String] = []
 
+    // Per-agent status tracking: sourceID -> agentID -> (status, lastChangedAt)
+    private var agentStatusBySource: [String: [String: (status: AgentStatus, date: Date)]] = [:]
+
     private lazy var bleProxy = SourceProxy(sourceID: "ble", aggregator: self)
     private lazy var usbProxy = SourceProxy(sourceID: "usb", aggregator: self)
 
@@ -80,12 +83,28 @@ final class StatusAggregator: NSObject {
         snapshotBySource[sourceID] = snapshot
         sourceRecency.removeAll { $0 == sourceID }
         sourceRecency.append(sourceID)
+
+        var sourceMap = agentStatusBySource[sourceID] ?? [:]
+        let now = Date()
+        for (agentID, newStatus) in snapshot.agents {
+            if let previous = sourceMap[agentID] {
+                if previous.status != newStatus {
+                    sourceMap[agentID] = (newStatus, now)
+                }
+            } else {
+                // First report from this source: use distantPast so existing data wins
+                sourceMap[agentID] = (newStatus, .distantPast)
+            }
+        }
+        agentStatusBySource[sourceID] = sourceMap
+
         delegate?.monitorDidReceive(merged())
     }
 
     fileprivate func disconnected(from sourceID: String) {
         snapshotBySource.removeValue(forKey: sourceID)
         sourceRecency.removeAll { $0 == sourceID }
+        agentStatusBySource.removeValue(forKey: sourceID)
         if !isConnected {
             delegate?.monitorDidDisconnect()
         } else {
@@ -94,26 +113,25 @@ final class StatusAggregator: NSObject {
     }
 
     private func merged() -> StatusSnapshot {
-        var agents: [String: AgentStatus] = [:]
-        for sourceID in sourceRecency {
-            guard let snapshot = snapshotBySource[sourceID] else { continue }
-            agents.merge(snapshot.agents) { _, new in new }
+        // For each agent, use the status with the most recent change timestamp across all sources
+        var agentLatest: [String: (status: AgentStatus, date: Date)] = [:]
+        for sourceMap in agentStatusBySource.values {
+            for (agentID, entry) in sourceMap {
+                if let current = agentLatest[agentID] {
+                    if entry.date > current.date {
+                        agentLatest[agentID] = entry
+                    }
+                } else {
+                    agentLatest[agentID] = entry
+                }
+            }
         }
+        let agents = agentLatest.mapValues { $0.status }
 
-        var quotas: BroadcastQuotaSnapshot?
-        var codexQuota: LegacyCodexQuotaSnapshot?
-        for sourceID in sourceRecency.reversed() {
-            guard let snapshot = snapshotBySource[sourceID] else { continue }
-            if quotas == nil, let candidate = snapshot.quotas {
-                quotas = candidate
-            }
-            if codexQuota == nil, let candidate = snapshot.codexQuota {
-                codexQuota = candidate
-            }
-            if quotas != nil && codexQuota != nil {
-                break
-            }
-        }
+        let quotas = snapshotBySource.values.compactMap { $0.quotas }.first
+        let codexQuota = snapshotBySource.values
+            .compactMap { $0.codexQuota }
+            .max { ($0.quotaUpdatedAt ?? 0) < ($1.quotaUpdatedAt ?? 0) }
 
         return StatusSnapshot(version: 1, agents: agents, quotas: quotas, codexQuota: codexQuota)
     }

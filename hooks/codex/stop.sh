@@ -10,4 +10,4 @@ write_status "idle"
 # so no hooks fire and no tokens are consumed.
 # Set QUOTA_PUSH_URL (e.g. in ~/.zshrc) to push quota to ubuntu-beacon:
 #   export QUOTA_PUSH_URL="http://100.91.235.49:8765/quota"
-QUOTA_PUSH_URL="${QUOTA_PUSH_URL:-}" python3 "$SCRIPT_DIR/read_quota.py" &>/dev/null &
+PATH="$HOME/.local/bin:$PATH" QUOTA_PUSH_URL="${QUOTA_PUSH_URL:-}" python3 "$SCRIPT_DIR/read_quota.py" &>/dev/null &

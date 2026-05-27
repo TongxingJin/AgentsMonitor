@@ -42,24 +42,23 @@ def _read_status(path: Path) -> str:
 def _read_quota() -> dict:
     try:
         data = json.loads(QUOTA_FILE.read_text())
-        if "fiveHourRemainingHours" in data:
-            return {
-                "quotas": {
-                    "fiveHourRemainingHours": float(data["fiveHourRemainingHours"]),
-                    "fiveHourCapacityHours":  5.0,
-                    "sevenDayRemainingDays":  float(data["sevenDayRemainingDays"]),
-                    "sevenDayCapacityDays":   7.0,
-                },
-                "codexQuota": None,
-            }
+        codex_quota: dict = {}
         if "fiveHourFraction" in data:
-            return {
-                "quotas": None,
-                "codexQuota": {
-                    "fiveHourFraction": float(data["fiveHourFraction"]),
-                    "weeklyFraction":   float(data["weeklyFraction"]),
-                },
-            }
+            codex_quota["fiveHourFraction"] = float(data["fiveHourFraction"])
+        elif "fiveHourRemainingHours" in data:
+            codex_quota["fiveHourFraction"] = float(data["fiveHourRemainingHours"]) / 5.0
+        if "weeklyFraction" in data:
+            codex_quota["weeklyFraction"] = float(data["weeklyFraction"])
+        elif "sevenDayRemainingDays" in data:
+            codex_quota["weeklyFraction"] = float(data["sevenDayRemainingDays"]) / 7.0
+        if "fiveHourRemainingHours" in data:
+            codex_quota["fiveHourRemainingHours"] = float(data["fiveHourRemainingHours"])
+        if "sevenDayRemainingDays" in data:
+            codex_quota["sevenDayRemainingDays"] = float(data["sevenDayRemainingDays"])
+        if "quotaUpdatedAt" in data:
+            codex_quota["quotaUpdatedAt"] = float(data["quotaUpdatedAt"])
+        if codex_quota:
+            return {"quotas": None, "codexQuota": codex_quota}
     except (OSError, json.JSONDecodeError, KeyError, TypeError):
         pass
     return {"quotas": None, "codexQuota": None}

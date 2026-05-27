@@ -287,6 +287,7 @@ def main():
             print("Could not parse quota from /status output", file=sys.stderr)
             sys.exit(1)
 
+        payload["quotaUpdatedAt"] = time.time()
         with open(QUOTA_FILE, "w") as f:
             json.dump(payload, f)
         print(

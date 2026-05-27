@@ -62,13 +62,16 @@ struct BroadcastQuotaSnapshot: Codable {
 struct LegacyCodexQuotaSnapshot: Codable {
     let fiveHourFraction: Double
     let weeklyFraction: Double
+    let fiveHourRemainingHours: Double?
+    let sevenDayRemainingDays: Double?
+    let quotaUpdatedAt: Double?
 
     func asQuotaSnapshot() -> QuotaSnapshot {
         QuotaSnapshot(
             fiveHourFraction: max(0, min(1, fiveHourFraction)),
             sevenDayFraction: max(0, min(1, weeklyFraction)),
-            fiveHourRemainingHours: nil,
-            sevenDayRemainingDays: nil
+            fiveHourRemainingHours: fiveHourRemainingHours,
+            sevenDayRemainingDays: sevenDayRemainingDays
         )
     }
 }
