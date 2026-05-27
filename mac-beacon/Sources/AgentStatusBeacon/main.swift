@@ -24,14 +24,9 @@ enum AgentStatus: String, Codable {
 struct CodexQuota: Codable, Equatable {
     let fiveHourFraction: Double
     let weeklyFraction: Double
+    let fiveHourRemainingHours: Double?
+    let sevenDayRemainingDays: Double?
     let quotaUpdatedAt: Double?
-}
-
-struct BroadcastQuota: Codable, Equatable {
-    let fiveHourRemainingHours: Double
-    let fiveHourCapacityHours: Double
-    let sevenDayRemainingDays: Double
-    let sevenDayCapacityDays: Double
 }
 
 struct StoredCodexQuota: Codable, Equatable {
@@ -49,19 +44,9 @@ struct StoredCodexQuota: Codable, Equatable {
         return CodexQuota(
             fiveHourFraction: fiveHourFraction,
             weeklyFraction: weeklyFraction,
-            quotaUpdatedAt: quotaUpdatedAt
-        )
-    }
-
-    var broadcastQuota: BroadcastQuota? {
-        guard let fiveHourRemainingHours, let sevenDayRemainingDays else {
-            return nil
-        }
-        return BroadcastQuota(
             fiveHourRemainingHours: fiveHourRemainingHours,
-            fiveHourCapacityHours: 5.0,
             sevenDayRemainingDays: sevenDayRemainingDays,
-            sevenDayCapacityDays: 7.0
+            quotaUpdatedAt: quotaUpdatedAt
         )
     }
 }
@@ -69,7 +54,7 @@ struct StoredCodexQuota: Codable, Equatable {
 struct AgentSnapshot: Codable, Equatable {
     let version: Int
     let agents: [String: AgentStatus]
-    let quotas: BroadcastQuota?
+    let quotas: CodexQuota?  // unused; kept for JSON compatibility
     let codexQuota: CodexQuota?
 }
 
@@ -133,7 +118,7 @@ final class MultiAgentStatusSource {
         return AgentSnapshot(
             version: 1,
             agents: agents,
-            quotas: storedQuota?.broadcastQuota,
+            quotas: nil,
             codexQuota: storedQuota?.legacyQuota
         )
     }

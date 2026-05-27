@@ -75,5 +75,5 @@ Codex status file:
   ${CODEX_STATUS_FILE:-$HOME/.codex/agent-status/status.txt}
 
 To start the Mac beacon:
-  cd mac-beacon && swift run
+  cd mac-beacon && ./install-launch-agent.sh
 EOF
