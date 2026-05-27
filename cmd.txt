@@ -1,0 +1,85 @@
+===========================
+ AgentsMonitor — 新设备安装
+===========================
+
+前提：已安装 git，已 clone 本仓库。
+所有命令在仓库根目录执行，除非特别说明。
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+ Mac 端（mac-beacon）
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 1. 前置依赖
+#    需要 Xcode Command Line Tools（提供 swiftc）
+xcode-select --install
+
+# 2. 安装 Claude Code hooks、Codex hooks、git pre-commit hook
+cd hooks && ./install.sh && cd ..
+
+# 3. 编译并安装 mac-beacon 为 LaunchAgent（开机自启）
+cd mac-beacon && ./install-launch-agent.sh && cd ..
+
+# 4. 验证 mac-beacon 正在运行
+launchctl print gui/$(id -u)/com.jin.agent-status-beacon
+
+# 5. 查看 mac-beacon 日志
+tail -f ~/Library/Logs/AgentStatusBeacon/stdout.log
+
+# 6. 在 Mac 上安装 iOS 应用
+#    打开 Xcode，选 app/ 目录下的项目，连接 iPhone，Build & Run。
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+ Ubuntu 端（usb-pusher + beacon）
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 1. 前置依赖
+sudo apt install libimobiledevice-utils usbmuxd   # USB iPhone 通信
+sudo apt install avahi-utils                       # mDNS 自动发现（可选）
+# python3 通常已预装，无需额外 pip 包
+
+# 2. 安装 Claude Code hooks、Codex hooks、git pre-commit hook
+cd hooks && ./install.sh && cd ..
+
+# 3. 信任 iPhone（USB 连接后执行一次）
+idevicepair pair
+
+# 4. 安装 USB pusher（iproxy 隧道 + 状态推送服务）
+cd ubuntu-usb && ./install.sh && cd ..
+
+# 5. 安装 ubuntu-beacon（Tailscale HTTP 广播服务）
+cd ubuntu-beacon && ./install.sh && cd ..
+
+# 6. 验证服务状态
+systemctl --user status ubuntu-iproxy ubuntu-usb-pusher ubuntu-beacon --no-pager
+
+# 7. 查看日志
+journalctl --user -u ubuntu-usb-pusher -f
+journalctl --user -u ubuntu-beacon -f
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+ 两端通用：服务管理命令
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 代码更新后重启服务（Ubuntu）
+systemctl --user restart ubuntu-usb-pusher ubuntu-beacon
+
+# 手动检查当前 agent 状态文件
+cat ~/.claude-status
+cat ~/.codex/agent-status/status.txt
+cat ~/.codex/agent-status/quota.json
+
+# 重新安装 hooks（hooks 脚本有改动时）
+cd hooks && ./install.sh && cd ..
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+ 注意事项
+━━━━━━━━━━━━━━━━━━━━━━━━
+- 必须已安装 Claude Code CLI（claude 命令可用），hooks 才会生效
+- 必须已安装 Codex CLI（codex 命令可用），Codex hooks 才会生效
+- iOS App 需用 Xcode 编译安装到真机（仅 Mac 可以操作）
+- iPhone USB 推送需要手机信任该设备（idevicepair pair）
+- hooks/install.sh 会同时安装 Claude hooks、Codex hooks 和 git pre-commit hook

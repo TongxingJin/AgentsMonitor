@@ -1,3 +1,3 @@
 import Foundation
 
-let appVersion = "dev"
+let appVersion = "67470c6"
