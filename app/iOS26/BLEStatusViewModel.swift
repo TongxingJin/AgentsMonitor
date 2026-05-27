@@ -6,7 +6,12 @@ final class BLEStatusViewModel: NSObject, ObservableObject {
     @Published var availableAgents: [String] = []
     @Published var selectedAgentID = "codex"
     @Published var isConnected = false
-    @Published var quotas: QuotaSnapshot = .fallback
+    @Published private var claudeQuota: QuotaSnapshot = .fallback
+    @Published private var codexQuota: QuotaSnapshot = .fallback
+
+    var quotas: QuotaSnapshot {
+        selectedAgentID == "codex" ? codexQuota : claudeQuota
+    }
     @Published var transportStatuses: [TransportStatus] = []
 
     private let monitor = StatusAggregator()
@@ -57,7 +62,8 @@ extension BLEStatusViewModel: StatusMonitorDelegate {
         isConnected = false
         statuses = [:]
         availableAgents = []
-        quotas = .fallback
+        claudeQuota = .fallback
+        codexQuota = .fallback
         syncTransportStatuses()
     }
 
@@ -71,9 +77,8 @@ extension BLEStatusViewModel: StatusMonitorDelegate {
             return i0 < i1
         }
 
-        quotas = snapshot.quotas?.asQuotaSnapshot()
-            ?? snapshot.codexQuota?.asQuotaSnapshot()
-            ?? .fallback
+        claudeQuota = snapshot.quotas?.asQuotaSnapshot() ?? .fallback
+        codexQuota = snapshot.codexQuota?.asQuotaSnapshot() ?? .fallback
 
         if !availableAgents.contains(selectedAgentID), let first = availableAgents.first {
             selectedAgentID = first

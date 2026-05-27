@@ -55,6 +55,12 @@ with open(settings_path, "w") as f:
 print("  Hooks registered successfully.")
 PYEOF
 
+echo "==> Initializing status files"
+touch "$HOME/.claude-status"
+[ -s "$HOME/.claude-status" ] || echo "idle" > "$HOME/.claude-status"
+mkdir -p "$HOME/.codex/agent-status"
+[ -s "$HOME/.codex/agent-status/status.txt" ] || echo "idle" > "$HOME/.codex/agent-status/status.txt"
+
 echo "==> Installing Codex hook scripts"
 "$CODEX_INSTALLER"
 

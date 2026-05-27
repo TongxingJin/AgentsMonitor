@@ -66,9 +66,7 @@ def _read_quota() -> dict:
 
 
 def _build_snapshot() -> dict:
-    agents = {k: _read_status(v) for k, v in STATUS_FILES.items() if v.exists()}
-    if not agents:
-        agents = {"claude": "idle"}
+    agents = {k: _read_status(v) for k, v in STATUS_FILES.items()}
     return {"version": 1, "agents": agents, **_read_quota()}
 
 

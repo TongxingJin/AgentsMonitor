@@ -6,7 +6,9 @@ final class StatusViewController: UIViewController {
     private var statuses: [String: AgentStatus] = [:]
     private var availableAgents: [String] = []
     private var selectedAgentID = "codex"
-    private var quotas: QuotaSnapshot = .fallback
+    private var claudeQuota: QuotaSnapshot = .fallback
+    private var codexQuota: QuotaSnapshot = .fallback
+    private var quotas: QuotaSnapshot { selectedAgentID == "codex" ? codexQuota : claudeQuota }
     private var transportStatuses: [TransportStatus] = []
 
     // MARK: - Views
@@ -352,7 +354,8 @@ extension StatusViewController: StatusMonitorDelegate {
     func monitorDidDisconnect() {
         statuses = [:]
         availableAgents = []
-        quotas = .fallback
+        claudeQuota = .fallback
+        codexQuota = .fallback
         transportStatuses = monitor.transportStatuses
         updateUI()
     }
@@ -367,9 +370,8 @@ extension StatusViewController: StatusMonitorDelegate {
             return i0 < i1
         }
 
-        quotas = snapshot.quotas?.asQuotaSnapshot()
-            ?? snapshot.codexQuota?.asQuotaSnapshot()
-            ?? .fallback
+        claudeQuota = snapshot.quotas?.asQuotaSnapshot() ?? .fallback
+        codexQuota = snapshot.codexQuota?.asQuotaSnapshot() ?? .fallback
 
         transportStatuses = monitor.transportStatuses
 

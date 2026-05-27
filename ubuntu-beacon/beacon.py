@@ -68,13 +68,7 @@ def _read_quota() -> dict:
 
 
 def _build_snapshot() -> dict:
-    agents = {
-        agent_id: _read_status(path)
-        for agent_id, path in STATUS_FILES.items()
-        if path.exists()
-    }
-    if not agents:
-        agents = {"claude": "idle"}
+    agents = {agent_id: _read_status(path) for agent_id, path in STATUS_FILES.items()}
     return {"version": 1, "agents": agents, **_read_quota()}
 
 
