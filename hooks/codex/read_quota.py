@@ -143,6 +143,7 @@ def _run() -> Tuple[str, str]:
                     "Weekly limit" in plain_text
                     or "weekly limit" in plain_text
                     or "5h limit" in plain_text
+                    or (re.search(r"\b5h\s+\d", plain_text) and re.search(r"\bweekly\s+\d", plain_text, re.IGNORECASE))
                 ):
                     quota_seen_at = time.monotonic()
 
@@ -226,12 +227,15 @@ def _parse(raw: str):
     text = _strip_ansi(raw)
     now = datetime.now()
 
-    m5 = re.search(r"5h limit[^\n]*?(\d+(?:\.\d+)?)%\s+left", text)
-    mw = re.search(r"[Ww]eekly limit[^\n]*?(\d+(?:\.\d+)?)%\s+left", text)
+    # Try compact status-bar format first ("5h 45% · weekly 17%"), then verbose.
+    # The verbose regex r"weekly limit[^\n]*?(\d+)%\s+left" can falsely match
+    # "Context 100% left" when the terminal output has no real newlines.
+    m5 = re.search(r"\b5h\s+(\d+(?:\.\d+)?)%", text)
     if not m5:
-        m5 = re.search(r"\b5h\s+(\d+(?:\.\d+)?)%", text)
+        m5 = re.search(r"5h limit[^\n]*?(\d+(?:\.\d+)?)%\s+left", text)
+    mw = re.search(r"\bweekly\s+(\d+(?:\.\d+)?)%", text, re.IGNORECASE)
     if not mw:
-        mw = re.search(r"\bweekly\s+(\d+(?:\.\d+)?)%", text, re.IGNORECASE)
+        mw = re.search(r"[Ww]eekly limit[^\n]*?(\d+(?:\.\d+)?)%\s+left", text)
 
     if not m5 or not mw:
         return None
