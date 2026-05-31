@@ -2,22 +2,24 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LABEL="com.jin.agent-status-beacon"
+LABEL="com.jin.agent-status-ble-beacon"
+OLD_LABEL="com.jin.agent-status-beacon"
 PLIST_DIR="$HOME/Library/LaunchAgents"
 PLIST_PATH="$PLIST_DIR/$LABEL.plist"
-LOG_DIR="$HOME/Library/Logs/AgentStatusBeacon"
-INSTALL_DIR="$HOME/Library/Application Support/AgentStatusBeacon"
-RUN_SCRIPT="$INSTALL_DIR/run-beacon.sh"
-BEACON_BINARY="$INSTALL_DIR/AgentStatusBeacon"
+OLD_PLIST_PATH="$PLIST_DIR/$OLD_LABEL.plist"
+LOG_DIR="$HOME/Library/Logs/AgentStatusBLEBeacon"
+INSTALL_DIR="$HOME/Library/Application Support/AgentStatusBLEBeacon"
+RUN_SCRIPT="$INSTALL_DIR/run-ble-beacon.sh"
+BEACON_BINARY="$INSTALL_DIR/AgentStatusBLEBeacon"
 
 mkdir -p "$PLIST_DIR" "$LOG_DIR" "$INSTALL_DIR"
 
-echo "==> Building AgentStatusBeacon"
+echo "==> Building AgentStatusBLEBeacon"
 "$DIR/build.sh"
 
 echo "==> Copying runtime files to $INSTALL_DIR"
-cp "$DIR/AgentStatusBeacon" "$BEACON_BINARY"
-cp "$DIR/run-beacon.sh" "$RUN_SCRIPT"
+cp "$DIR/AgentStatusBLEBeacon" "$BEACON_BINARY"
+cp "$DIR/run-ble-beacon.sh" "$RUN_SCRIPT"
 chmod +x "$BEACON_BINARY" "$RUN_SCRIPT"
 
 echo "==> Writing LaunchAgent plist"
@@ -55,6 +57,10 @@ cat > "$PLIST_PATH" <<EOF
 </plist>
 EOF
 
+echo "==> Cleaning up legacy LaunchAgent label (if present)"
+launchctl bootout "gui/$(id -u)" "$OLD_PLIST_PATH" >/dev/null 2>&1 || true
+rm -f "$OLD_PLIST_PATH"
+
 echo "==> Reloading LaunchAgent"
 launchctl bootout "gui/$(id -u)" "$PLIST_PATH" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH"
@@ -63,7 +69,7 @@ launchctl kickstart -k "gui/$(id -u)/$LABEL"
 
 cat <<EOF
 
-AgentStatusBeacon is now installed as a LaunchAgent.
+AgentStatusBLEBeacon is now installed as a LaunchAgent.
 
 Label:
   $LABEL

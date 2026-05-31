@@ -1,11 +1,11 @@
 #!/bin/bash
-# Install ubuntu-beacon as a systemd user service.
+# Install ubuntu-tailscale-beacon as a systemd user service.
 # Usage: ./install.sh
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SERVICE_NAME="ubuntu-beacon"
+SERVICE_NAME="ubuntu-tailscale-beacon"
 SERVICE_FILE="$HOME/.config/systemd/user/${SERVICE_NAME}.service"
 
 # Check dependencies
@@ -28,7 +28,7 @@ After=default.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 ${SCRIPT_DIR}/beacon.py
+ExecStart=/usr/bin/python3 ${SCRIPT_DIR}/tailscale_beacon.py
 Restart=always
 RestartSec=5
 
@@ -42,6 +42,8 @@ systemctl --user start  "${SERVICE_NAME}"
 systemctl --user status "${SERVICE_NAME}" --no-pager
 
 echo ""
-echo "ubuntu-beacon installed and running."
-echo "To view logs: journalctl --user -u ${SERVICE_NAME} -f"
-echo "To stop:      systemctl --user stop ${SERVICE_NAME}"
+echo "ubuntu-tailscale-beacon installed and running."
+echo "Auto-start is enabled for reboot persistence."
+echo "Status:       systemctl --user status ${SERVICE_NAME} --no-pager"
+echo "Logs:         journalctl --user -u ${SERVICE_NAME} -f"
+echo "Stop:         systemctl --user stop ${SERVICE_NAME}"

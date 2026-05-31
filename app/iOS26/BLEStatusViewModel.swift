@@ -77,8 +77,8 @@ extension BLEStatusViewModel: StatusMonitorDelegate {
             return i0 < i1
         }
 
-        claudeQuota = snapshot.quotas?.asQuotaSnapshot() ?? .fallback
-        codexQuota = snapshot.codexQuota?.asQuotaSnapshot() ?? .fallback
+        claudeQuota = snapshot.quotas?["claude"]?.asQuotaSnapshot() ?? .fallback
+        codexQuota = snapshot.quotas?["codex"]?.asQuotaSnapshot() ?? .fallback
 
         if !availableAgents.contains(selectedAgentID), let first = availableAgents.first {
             selectedAgentID = first

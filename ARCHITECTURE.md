@@ -12,7 +12,7 @@ Claude Code hooks          Codex hooks
      │         电脑端（三种方式任选）            │
      │                                         │
      │  Mac BLE beacon    Ubuntu HTTP beacon   │
-     │  mac-beacon/        ubuntu-beacon/      │
+     │  mac-ble-beacon/        ubuntu-tailscale-beacon/      │
      │                                         │
      │  Ubuntu USB pusher                      │
      │  ubuntu-usb/pusher.py                   │
@@ -68,7 +68,7 @@ Characteristic UUID: `A1B2C3D4-E5F6-47A1-9B2C-001122334466`（Read + Notify）
 
 ## HTTP 协议（Ubuntu ↔ iPhone via Tailscale）
 
-`ubuntu-beacon` 在端口 `8765` 提供：
+`ubuntu-tailscale-beacon` 在端口 `8765` 提供：
 
 - `GET /status` — 返回与 BLE 结构相同的 JSON
 - `POST /quota` — 接收 Mac 推送的 Codex 额度数据，写入本地 quota.json
@@ -159,31 +159,31 @@ iPhone App 用 `Network.framework` 的 `NWListener` 接收，支持 iOS 12+。
 
 ## Mac Beacon 常驻服务
 
-`mac-beacon/install-launch-agent.sh` 写入：
+`mac-ble-beacon/install-launch-agent.sh` 写入：
 
 ```text
-~/Library/LaunchAgents/com.jin.agent-status-beacon.plist
-~/Library/Application Support/AgentStatusBeacon/AgentStatusBeacon
-~/Library/Logs/AgentStatusBeacon/stdout.log
+~/Library/LaunchAgents/com.jin.agent-status-ble-beacon.plist
+~/Library/Application Support/AgentStatusBLEBeacon/AgentStatusBLEBeacon
+~/Library/Logs/AgentStatusBLEBeacon/stdout.log
 ```
 
 调试命令：
 
 ```bash
-launchctl print gui/$(id -u)/com.jin.agent-status-beacon
-launchctl kickstart -k gui/$(id -u)/com.jin.agent-status-beacon
-tail -f ~/Library/Logs/AgentStatusBeacon/stdout.log
+launchctl print gui/$(id -u)/com.jin.agent-status-ble-beacon
+launchctl kickstart -k gui/$(id -u)/com.jin.agent-status-ble-beacon
+tail -f ~/Library/Logs/AgentStatusBLEBeacon/stdout.log
 ```
 
 ---
 
 ## Ubuntu Beacon 系统服务
 
-`ubuntu-beacon/install.sh` 写入 `~/.config/systemd/user/ubuntu-beacon.service`。
+`ubuntu-tailscale-beacon/install.sh` 写入 `~/.config/systemd/user/ubuntu-tailscale-beacon.service`。
 
 ```bash
-systemctl --user status ubuntu-beacon
-journalctl --user -u ubuntu-beacon -f
+systemctl --user status ubuntu-tailscale-beacon
+journalctl --user -u ubuntu-tailscale-beacon -f
 ```
 
 ---

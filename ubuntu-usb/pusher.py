@@ -42,26 +42,35 @@ def _read_status(path: Path) -> str:
 def _read_quota() -> dict:
     try:
         data = json.loads(QUOTA_FILE.read_text())
-        codex_quota: dict = {}
-        if "fiveHourFraction" in data:
-            codex_quota["fiveHourFraction"] = float(data["fiveHourFraction"])
-        elif "fiveHourRemainingHours" in data:
-            codex_quota["fiveHourFraction"] = float(data["fiveHourRemainingHours"]) / 5.0
-        if "weeklyFraction" in data:
-            codex_quota["weeklyFraction"] = float(data["weeklyFraction"])
-        elif "sevenDayRemainingDays" in data:
-            codex_quota["weeklyFraction"] = float(data["sevenDayRemainingDays"]) / 7.0
-        if "fiveHourRemainingHours" in data:
-            codex_quota["fiveHourRemainingHours"] = float(data["fiveHourRemainingHours"])
-        if "sevenDayRemainingDays" in data:
-            codex_quota["sevenDayRemainingDays"] = float(data["sevenDayRemainingDays"])
-        if "quotaUpdatedAt" in data:
-            codex_quota["quotaUpdatedAt"] = float(data["quotaUpdatedAt"])
+
+        def _normalize_provider(provider_data: dict | None) -> dict | None:
+            if not isinstance(provider_data, dict):
+                return None
+            if "fiveHourFraction" not in provider_data or "weeklyFraction" not in provider_data:
+                return None
+            out: dict = {
+                "fiveHourFraction": float(provider_data["fiveHourFraction"]),
+                "weeklyFraction": float(provider_data["weeklyFraction"]),
+            }
+            if "fiveHourRemainingHours" in provider_data:
+                out["fiveHourRemainingHours"] = float(provider_data["fiveHourRemainingHours"])
+            if "sevenDayRemainingDays" in provider_data:
+                out["sevenDayRemainingDays"] = float(provider_data["sevenDayRemainingDays"])
+            if "quotaUpdatedAt" in provider_data:
+                out["quotaUpdatedAt"] = float(provider_data["quotaUpdatedAt"])
+            return out
+
+        codex_quota = _normalize_provider(data.get("codex") if isinstance(data, dict) else None)
+        claude_quota = _normalize_provider(data.get("claude") if isinstance(data, dict) else None)
+        quotas = {}
         if codex_quota:
-            return {"quotas": None, "codexQuota": codex_quota}
+            quotas["codex"] = codex_quota
+        if claude_quota:
+            quotas["claude"] = claude_quota
+        return {"quotas": quotas or None}
     except (OSError, json.JSONDecodeError, KeyError, TypeError):
         pass
-    return {"quotas": None, "codexQuota": None}
+    return {"quotas": None}
 
 
 def _build_snapshot() -> dict:

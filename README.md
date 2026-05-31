@@ -35,7 +35,7 @@
 适合：**MacBook 用户**
 
 - 无需任何网络，纯设备间直连
-- Mac 上运行 `mac-beacon`，iPhone 自动发现并连接
+- Mac 上运行 `mac-ble-beacon`，iPhone 自动发现并连接
 - iOS 12 / iOS 26 均支持
 - 同时支持 Claude Code 和 Codex 的状态与额度
 
@@ -44,7 +44,7 @@
 适合：**台式机用户**，或需要**跨距离**监控
 
 - 只要手机连接 WiFi、电脑在 Tailscale 网络内即可，无需在同一局域网
-- Ubuntu 上运行 `ubuntu-beacon`，iOS 26 app 填入电脑的 Tailscale IP 后自动轮询
+- Ubuntu 上运行 `ubuntu-tailscale-beacon`，iOS 26 app 填入电脑的 Tailscale IP 后自动轮询
 - 支持同时配置多台电脑（如 MacBook + Ubuntu 台式机）
 
 ### USB — Ubuntu ↔ iPhone
@@ -93,7 +93,7 @@ echo idle > ~/.codex/agent-status/status.txt  # Codex 状态
 #### 方案 A：Mac + BLE（推荐 MacBook 用户）
 
 ```bash
-cd mac-beacon
+cd mac-ble-beacon
 ./build.sh
 ./install-launch-agent.sh   # 设置为开机自动运行
 ```
@@ -106,9 +106,11 @@ cd mac-beacon
 
 **Ubuntu 端：**
 
+默认不安装 Ubuntu 组件。只有在你确实要用 Tailscale 路径时再执行：
+
 ```bash
-cd ubuntu-beacon
-python3 beacon.py &                # 或 ./install.sh 设为系统服务
+cd ubuntu-tailscale-beacon
+./install.sh                       # 安装后自动 enable + start
 ```
 
 **手机端（iOS 26）：**
@@ -128,9 +130,14 @@ idevicepair pair   # 首次需要信任设备
 
 **安装并启动：**
 
+默认不安装 Ubuntu 组件。只有在你确实要用 USB 路径时再执行：
+
 ```bash
 cd ubuntu-usb
-./install.sh
+./install.sh                       # 仅安装 service，默认不启动
+systemctl --user start ubuntu-iproxy ubuntu-usb-pusher
+# 可选：开机自启
+# systemctl --user enable ubuntu-iproxy ubuntu-usb-pusher
 ```
 
 手机用数据线连接 Ubuntu，app 会自动接收状态推送。
@@ -170,8 +177,8 @@ AgentsMonitor/
 │   ├── Shared/          # 共享 Swift 代码（BLE、HTTP、USB、Tailscale 监听）
 │   ├── iOS26/           # iOS 26 SwiftUI app
 │   └── iOS12/           # iOS 12 UIKit app
-├── mac-beacon/          # macOS BLE 广播（Swift）
-├── ubuntu-beacon/       # Ubuntu HTTP 状态服务（Python）
+├── mac-ble-beacon/          # macOS BLE 广播（Swift）
+├── ubuntu-tailscale-beacon/       # Ubuntu HTTP 状态服务（Python）
 ├── ubuntu-usb/          # Ubuntu USB 推送服务（Python）
 └── hooks/
     ├── *.sh             # Claude Code hooks

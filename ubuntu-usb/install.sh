@@ -42,11 +42,11 @@ WantedBy=default.target
 EOF
 
 systemctl --user daemon-reload
-systemctl --user enable ubuntu-iproxy ubuntu-usb-pusher
-systemctl --user start  ubuntu-iproxy ubuntu-usb-pusher
-systemctl --user status ubuntu-iproxy ubuntu-usb-pusher --no-pager
 
 echo ""
-echo "USB pusher installed."
+echo "USB services installed (not started)."
 echo "iPhone must be connected via USB and trusted (idevicepair pair)."
-echo "Logs: journalctl --user -u ubuntu-usb-pusher -f"
+echo "Start now:    systemctl --user start ubuntu-iproxy ubuntu-usb-pusher"
+echo "Enable boot:  systemctl --user enable ubuntu-iproxy ubuntu-usb-pusher"
+echo "Status:       systemctl --user status ubuntu-iproxy ubuntu-usb-pusher --no-pager"
+echo "Logs:         journalctl --user -u ubuntu-usb-pusher -f"

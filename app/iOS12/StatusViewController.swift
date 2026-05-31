@@ -10,6 +10,15 @@ final class StatusViewController: UIViewController {
     private var codexQuota: QuotaSnapshot = .fallback
     private var quotas: QuotaSnapshot { selectedAgentID == "codex" ? codexQuota : claudeQuota }
     private var transportStatuses: [TransportStatus] = []
+    private var renderedStatus: AgentStatus?
+    private var isBlinking = false
+
+    private var supportsAnimatedBackgrounds: Bool {
+        if #available(iOS 13.0, *) {
+            return true
+        }
+        return false
+    }
 
     // MARK: - Views
 
@@ -91,7 +100,12 @@ final class StatusViewController: UIViewController {
         view.addSubview(quotaRow)
 
         versionLabel.text = appVersion
-        versionLabel.font = UIFont.monospacedSystemFont(ofSize: 10, weight: .regular)
+        if #available(iOS 13.0, *) {
+            versionLabel.font = UIFont.monospacedSystemFont(ofSize: 10, weight: .regular)
+        } else {
+            versionLabel.font = UIFont(name: "Menlo-Regular", size: 10)
+                ?? UIFont.systemFont(ofSize: 10, weight: .regular)
+        }
         versionLabel.textColor = UIColor.black.withAlphaComponent(0.25)
         versionLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(versionLabel)
@@ -202,6 +216,9 @@ final class StatusViewController: UIViewController {
     private var gradientLayer: CAGradientLayer?
 
     private func startWorkingAnimation() {
+        if gradientLayer != nil {
+            return
+        }
         stopWorkingAnimation()
 
         let dark  = UIColor(red: 0.0,  green: 0.30, blue: 0.05, alpha: 1).cgColor
@@ -250,6 +267,10 @@ final class StatusViewController: UIViewController {
     // MARK: - Blink
 
     private func startBlinkAnimation() {
+        if isBlinking {
+            return
+        }
+        isBlinking = true
         view.layer.removeAllAnimations()
         view.backgroundColor = .red
         UIView.animate(withDuration: 0.5, delay: 0,
@@ -259,6 +280,10 @@ final class StatusViewController: UIViewController {
     }
 
     private func stopBlinkAnimation() {
+        if !isBlinking {
+            return
+        }
+        isBlinking = false
         view.layer.removeAllAnimations()
     }
 
@@ -268,19 +293,30 @@ final class StatusViewController: UIViewController {
         let status = statuses[selectedAgentID] ?? .idle
         let agentName = StatusAggregator.displayName(for: selectedAgentID)
 
-        // Background color
-        if status == .awaitingApproval {
-            stopWorkingAnimation()
-            startBlinkAnimation()
-        } else if status == .working {
-            stopBlinkAnimation()
-            startWorkingAnimation()
-        } else {
-            stopBlinkAnimation()
-            stopWorkingAnimation()
-            UIView.animate(withDuration: 0.3) {
-                self.view.backgroundColor = self.backgroundColor(for: status)
+        // Only switch background animation when status actually changes.
+        if renderedStatus != status {
+            if !supportsAnimatedBackgrounds {
+                // iOS12 devices are more prone to frame drops with repeating
+                // full-screen animations; use static backgrounds for stability.
+                stopBlinkAnimation()
+                stopWorkingAnimation()
+                view.backgroundColor = backgroundColor(for: status)
+            } else {
+                if status == .awaitingApproval {
+                    stopWorkingAnimation()
+                    startBlinkAnimation()
+                } else if status == .working {
+                    stopBlinkAnimation()
+                    startWorkingAnimation()
+                } else {
+                    stopBlinkAnimation()
+                    stopWorkingAnimation()
+                    UIView.animate(withDuration: 0.3) {
+                        self.view.backgroundColor = self.backgroundColor(for: status)
+                    }
+                }
             }
+            renderedStatus = status
         }
 
         // Labels
@@ -320,9 +356,9 @@ final class StatusViewController: UIViewController {
 
     private func backgroundColor(for status: AgentStatus) -> UIColor {
         switch status {
-        case .working: return UIColor(red: 0.9, green: 1.0, blue: 0.9, alpha: 1)
+        case .working: return UIColor(red: 0.94, green: 0.98, blue: 0.94, alpha: 1)
         case .idle: return .white
-        case .awaitingApproval: return .red
+        case .awaitingApproval: return UIColor(red: 0.96, green: 0.82, blue: 0.82, alpha: 1)
         case .unknown: return UIColor.lightGray.withAlphaComponent(0.25)
         }
     }
@@ -380,8 +416,8 @@ extension StatusViewController: StatusMonitorDelegate {
             return i0 < i1
         }
 
-        claudeQuota = snapshot.quotas?.asQuotaSnapshot() ?? .fallback
-        codexQuota = snapshot.codexQuota?.asQuotaSnapshot() ?? .fallback
+        claudeQuota = snapshot.quotas?["claude"]?.asQuotaSnapshot() ?? .fallback
+        codexQuota = snapshot.quotas?["codex"]?.asQuotaSnapshot() ?? .fallback
 
         transportStatuses = monitor.transportStatuses
 

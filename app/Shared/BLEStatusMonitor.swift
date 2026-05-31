@@ -13,6 +13,8 @@ final class BLEStatusMonitor: NSObject {
 
     private var central: CBCentralManager!
     private var peripheral: CBPeripheral?
+    private var statusCharacteristic: CBCharacteristic?
+    private var pollTimer: Timer?
 
     override init() {
         super.init()
@@ -33,13 +35,29 @@ final class BLEStatusMonitor: NSObject {
             delegate?.monitorDidReceive(snapshot)
             return
         }
-        let legacyStatus = AgentStatus.from(data: data)
-        delegate?.monitorDidReceive(StatusSnapshot(
-            version: 1,
-            agents: ["claude": legacyStatus],
-            quotas: nil,
-            codexQuota: nil
-        ))
+
+        // Keep supporting very old plain-text beacons, but never downgrade to
+        // unknown on malformed/truncated JSON payloads.
+        guard let legacyStatus = data.flatMap({ AgentStatus.from(data: $0) }),
+              legacyStatus != .unknown else {
+            return
+        }
+        delegate?.monitorDidReceive(StatusSnapshot(version: 1, agents: ["claude": legacyStatus], quotas: nil))
+    }
+
+    private func startPolling() {
+        pollTimer?.invalidate()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self,
+                  let p = self.peripheral,
+                  let c = self.statusCharacteristic else { return }
+            p.readValue(for: c)
+        }
+    }
+
+    private func stopPolling() {
+        pollTimer?.invalidate()
+        pollTimer = nil
     }
 }
 
@@ -64,6 +82,8 @@ extension BLEStatusMonitor: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         isConnected = true
         delegate?.monitorDidConnect()
+        statusCharacteristic = nil
+        stopPolling()
         peripheral.discoverServices([bleServiceUUID])
     }
 
@@ -73,6 +93,8 @@ extension BLEStatusMonitor: CBCentralManagerDelegate {
         error: Error?
     ) {
         isConnected = false
+        statusCharacteristic = nil
+        stopPolling()
         delegate?.monitorDidDisconnect()
         central.scanForPeripherals(withServices: [bleServiceUUID], options: nil)
     }
@@ -93,8 +115,10 @@ extension BLEStatusMonitor: CBPeripheralDelegate {
     ) {
         guard let chars = service.characteristics else { return }
         for characteristic in chars where characteristic.uuid == bleCharacteristicUUID {
+            statusCharacteristic = characteristic
             peripheral.setNotifyValue(true, for: characteristic)
             peripheral.readValue(for: characteristic)
+            startPolling()
         }
     }
 

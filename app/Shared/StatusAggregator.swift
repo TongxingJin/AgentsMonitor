@@ -128,12 +128,27 @@ final class StatusAggregator: NSObject {
         }
         let agents = agentLatest.mapValues { $0.status }
 
-        let quotas = snapshotBySource.values.compactMap { $0.quotas }.first
-        let codexQuota = snapshotBySource.values
-            .compactMap { $0.codexQuota }
-            .max { ($0.quotaUpdatedAt ?? 0) < ($1.quotaUpdatedAt ?? 0) }
+        var mergedQuotas: [String: ProviderQuotaSnapshot] = [:]
+        for snapshot in snapshotBySource.values {
+            guard let quotas = snapshot.quotas else { continue }
+            for (agentID, quota) in quotas {
+                if let existing = mergedQuotas[agentID] {
+                    let oldTs = existing.quotaUpdatedAt ?? 0
+                    let newTs = quota.quotaUpdatedAt ?? 0
+                    if newTs >= oldTs {
+                        mergedQuotas[agentID] = quota
+                    }
+                } else {
+                    mergedQuotas[agentID] = quota
+                }
+            }
+        }
 
-        return StatusSnapshot(version: 1, agents: agents, quotas: quotas, codexQuota: codexQuota)
+        return StatusSnapshot(
+            version: 1,
+            agents: agents,
+            quotas: mergedQuotas.isEmpty ? nil : mergedQuotas
+        )
     }
 }
 

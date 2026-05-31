@@ -43,23 +43,7 @@ struct QuotaSnapshot: Equatable {
     )
 }
 
-struct BroadcastQuotaSnapshot: Codable {
-    let fiveHourRemainingHours: Double
-    let fiveHourCapacityHours: Double
-    let sevenDayRemainingDays: Double
-    let sevenDayCapacityDays: Double
-
-    func asQuotaSnapshot() -> QuotaSnapshot {
-        QuotaSnapshot(
-            fiveHourFraction: fiveHourRemainingHours / max(fiveHourCapacityHours, 0.1),
-            sevenDayFraction: sevenDayRemainingDays / max(sevenDayCapacityDays, 0.1),
-            fiveHourRemainingHours: fiveHourRemainingHours,
-            sevenDayRemainingDays: sevenDayRemainingDays
-        )
-    }
-}
-
-struct LegacyCodexQuotaSnapshot: Codable {
+struct ProviderQuotaSnapshot: Codable {
     let fiveHourFraction: Double
     let weeklyFraction: Double
     let fiveHourRemainingHours: Double?
@@ -67,9 +51,11 @@ struct LegacyCodexQuotaSnapshot: Codable {
     let quotaUpdatedAt: Double?
 
     func asQuotaSnapshot() -> QuotaSnapshot {
-        QuotaSnapshot(
-            fiveHourFraction: max(0, min(1, fiveHourFraction)),
-            sevenDayFraction: max(0, min(1, weeklyFraction)),
+        let fiveHourRemainingFraction = 1.0 - fiveHourFraction
+        let sevenDayRemainingFraction = 1.0 - weeklyFraction
+        return QuotaSnapshot(
+            fiveHourFraction: max(0, min(1, fiveHourRemainingFraction)),
+            sevenDayFraction: max(0, min(1, sevenDayRemainingFraction)),
             fiveHourRemainingHours: fiveHourRemainingHours,
             sevenDayRemainingDays: sevenDayRemainingDays
         )
@@ -79,6 +65,5 @@ struct LegacyCodexQuotaSnapshot: Codable {
 struct StatusSnapshot: Codable {
     let version: Int
     let agents: [String: AgentStatus]
-    let quotas: BroadcastQuotaSnapshot?
-    let codexQuota: LegacyCodexQuotaSnapshot?
+    let quotas: [String: ProviderQuotaSnapshot]?
 }

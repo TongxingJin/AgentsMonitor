@@ -2,8 +2,8 @@
 .DS_Store
 
 # Swift build artifacts
-mac-beacon/.build/
-mac-beacon/AgentStatusBeacon
+mac-ble-beacon/.build/
+mac-ble-beacon/AgentStatusBLEBeacon
 
 # Python
 __pycache__/

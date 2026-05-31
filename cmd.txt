@@ -7,7 +7,37 @@
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
- Mac 端（mac-beacon）
+ Mac 端（mac-ble-beacon）
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+ 额度抓取（接口版）手动验证
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 1. 手动触发一次额度抓取（Codex + Claude）
+python3 ~/.codex/agent-status-hooks/read_quota.py
+
+# 可选：设置自动刷新间隔（秒），默认 300，最小 300
+# export QUOTA_REFRESH_SECONDS=300
+# 可选：指定额度抓取脚本路径
+# export QUOTA_READER="$HOME/.codex/agent-status-hooks/read_quota.py"
+
+# 2. 查看最新额度快照（兼容旧字段 + 新版 codex/claude 字段）
+cat ~/.codex/agent-status/quota.json | python3 -m json.tool
+
+# 3. 查看抓取调试输出
+cat ~/.codex/agent-status/quota-debug.txt
+
+# 4. 重启 beacon 服务并看日志（Ubuntu）
+systemctl --user restart ubuntu-tailscale-beacon
+journalctl --user -u ubuntu-tailscale-beacon -f
+
+# 注意：当前 Ubuntu 侧已改为只读取本地 quota.json，不再周期触发 read_quota.py。
+# 额度刷新由 Stop hook 触发（Codex/Claude 会话结束时）。
+
+# 5. 重启 beacon 服务并看日志（Mac）
+launchctl kickstart -k gui/$(id -u)/com.jin.agent-status-ble-beacon
+tail -f ~/Library/Logs/AgentStatusBLEBeacon/stdout.log
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 # 1. 前置依赖
@@ -17,14 +47,14 @@ xcode-select --install
 # 2. 安装 Claude Code hooks、Codex hooks、git pre-commit hook
 cd hooks && ./install.sh && cd ..
 
-# 3. 编译并安装 mac-beacon 为 LaunchAgent（开机自启）
-cd mac-beacon && ./install-launch-agent.sh && cd ..
+# 3. 编译并安装 mac-ble-beacon 为 LaunchAgent（开机自启）
+cd mac-ble-beacon && ./install-launch-agent.sh && cd ..
 
-# 4. 验证 mac-beacon 正在运行
-launchctl print gui/$(id -u)/com.jin.agent-status-beacon
+# 4. 验证 mac-ble-beacon 正在运行
+launchctl print gui/$(id -u)/com.jin.agent-status-ble-beacon
 
-# 5. 查看 mac-beacon 日志
-tail -f ~/Library/Logs/AgentStatusBeacon/stdout.log
+# 5. 查看 mac-ble-beacon 日志
+tail -f ~/Library/Logs/AgentStatusBLEBeacon/stdout.log
 
 # 6. 在 Mac 上安装 iOS 应用
 #    打开 Xcode，选 app/ 目录下的项目，连接 iPhone，Build & Run。
@@ -33,6 +63,9 @@ tail -f ~/Library/Logs/AgentStatusBeacon/stdout.log
 ━━━━━━━━━━━━━━━━━━━━━━━━
  Ubuntu 端（usb-pusher + beacon）
 ━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 注意：默认流程不安装 Ubuntu 组件。
+# 仅当你需要 Ubuntu Tailscale/USB 路径时，才执行以下步骤。
 
 # 1. 前置依赖
 sudo apt install libimobiledevice-utils usbmuxd   # USB iPhone 通信
@@ -47,16 +80,24 @@ idevicepair pair
 
 # 4. 安装 USB pusher（iproxy 隧道 + 状态推送服务）
 cd ubuntu-usb && ./install.sh && cd ..
+#    默认只安装，不会自动启动
 
-# 5. 安装 ubuntu-beacon（Tailscale HTTP 广播服务）
-cd ubuntu-beacon && ./install.sh && cd ..
+# 5. 安装 ubuntu-tailscale-beacon（Tailscale HTTP 广播服务）
+cd ubuntu-tailscale-beacon && ./install.sh && cd ..
+#    安装后会自动 enable + start（保持 Stop hook 额度对外可用）
 
-# 6. 验证服务状态
-systemctl --user status ubuntu-iproxy ubuntu-usb-pusher ubuntu-beacon --no-pager
+# 6. 如需启用 USB 服务（手动启动）
+systemctl --user start ubuntu-iproxy ubuntu-usb-pusher
 
-# 7. 查看日志
+# 7. 如需 USB 开机自启（可选）
+systemctl --user enable ubuntu-iproxy ubuntu-usb-pusher
+
+# 8. 验证服务状态
+systemctl --user status ubuntu-iproxy ubuntu-usb-pusher ubuntu-tailscale-beacon --no-pager
+
+# 9. 查看日志
 journalctl --user -u ubuntu-usb-pusher -f
-journalctl --user -u ubuntu-beacon -f
+journalctl --user -u ubuntu-tailscale-beacon -f
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
@@ -64,7 +105,7 @@ journalctl --user -u ubuntu-beacon -f
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
 # 代码更新后重启服务（Ubuntu）
-systemctl --user restart ubuntu-usb-pusher ubuntu-beacon
+systemctl --user restart ubuntu-usb-pusher ubuntu-tailscale-beacon
 
 # 手动检查当前 agent 状态文件
 cat ~/.claude-status

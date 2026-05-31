@@ -21,7 +21,7 @@ enum AgentStatus: String, Codable {
     }
 }
 
-struct CodexQuota: Codable, Equatable {
+struct ProviderQuota: Codable, Equatable {
     let fiveHourFraction: Double
     let weeklyFraction: Double
     let fiveHourRemainingHours: Double?
@@ -29,33 +29,19 @@ struct CodexQuota: Codable, Equatable {
     let quotaUpdatedAt: Double?
 }
 
-struct StoredCodexQuota: Codable, Equatable {
-    let fiveHourFraction: Double?
-    let weeklyFraction: Double?
-    let fiveHourRemainingHours: Double?
-    let sevenDayRemainingDays: Double?
-    let source: String?
+struct StoredQuotaEnvelope: Codable, Equatable {
+    let version: Int?
     let quotaUpdatedAt: Double?
-
-    var legacyQuota: CodexQuota? {
-        guard let fiveHourFraction, let weeklyFraction else {
-            return nil
-        }
-        return CodexQuota(
-            fiveHourFraction: fiveHourFraction,
-            weeklyFraction: weeklyFraction,
-            fiveHourRemainingHours: fiveHourRemainingHours,
-            sevenDayRemainingDays: sevenDayRemainingDays,
-            quotaUpdatedAt: quotaUpdatedAt
-        )
-    }
+    let codex: ProviderQuota?
+    let claude: ProviderQuota?
+    let codexError: String?
+    let claudeError: String?
 }
 
 struct AgentSnapshot: Codable, Equatable {
     let version: Int
     let agents: [String: AgentStatus]
-    let quotas: CodexQuota?  // unused; kept for JSON compatibility
-    let codexQuota: CodexQuota?
+    let quotas: [String: ProviderQuota]?
 }
 
 struct AgentConfig {
@@ -102,10 +88,20 @@ final class StatusSource {
 final class MultiAgentStatusSource {
     private let sources: [String: StatusSource]
     private let codexQuotaFilePath: String
+    private let quotaReaderPath: String
+    private let quotaRefreshInterval: TimeInterval
+    private var lastQuotaRefreshAt: Date?
+    private var quotaRefreshRunning = false
 
     init(configs: [AgentConfig]) {
         self.sources = Dictionary(uniqueKeysWithValues: configs.map { ($0.id, StatusSource(config: $0)) })
         self.codexQuotaFilePath = NSString(string: "~/.codex/agent-status/quota.json").expandingTildeInPath
+        self.quotaReaderPath = NSString(string: "~/.codex/agent-status-hooks/read_quota.py").expandingTildeInPath
+
+        let raw = ProcessInfo.processInfo.environment["QUOTA_REFRESH_SECONDS"] ?? "300"
+        let parsed = TimeInterval(raw) ?? 300
+        // Keep a practical floor to avoid aggressive polling.
+        self.quotaRefreshInterval = max(300, parsed)
     }
 
     var debugDescriptions: [String] {
@@ -113,32 +109,71 @@ final class MultiAgentStatusSource {
     }
 
     func snapshot() -> AgentSnapshot {
+        maybeRefreshQuota()
         let agents = sources.mapValues { $0.currentStatus() }
-        let storedQuota = readStoredCodexQuota()
+        let storedQuotas = readStoredQuotas()
         return AgentSnapshot(
             version: 1,
             agents: agents,
-            quotas: nil,
-            codexQuota: storedQuota?.legacyQuota
+            quotas: storedQuotas
         )
     }
 
-    private func readStoredCodexQuota() -> StoredCodexQuota? {
+    private func maybeRefreshQuota() {
+        if quotaRefreshRunning {
+            return
+        }
+
+        let now = Date()
+        if let last = lastQuotaRefreshAt,
+           now.timeIntervalSince(last) < quotaRefreshInterval {
+            return
+        }
+
+        guard FileManager.default.fileExists(atPath: quotaReaderPath) else {
+            return
+        }
+
+        quotaRefreshRunning = true
+        lastQuotaRefreshAt = now
+
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            defer {
+                DispatchQueue.main.async {
+                    self.quotaRefreshRunning = false
+                }
+            }
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = ["python3", self.quotaReaderPath]
+            process.environment = ProcessInfo.processInfo.environment
+            process.standardOutput = Pipe()
+            process.standardError = Pipe()
+            do {
+                try process.run()
+                process.waitUntilExit()
+            } catch {
+                // Keep beacon alive even if quota refresh fails.
+            }
+        }
+    }
+
+    private func readStoredQuotas() -> [String: ProviderQuota]? {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: codexQuotaFilePath)) else { return nil }
-        if let storedQuota = try? JSONDecoder().decode(StoredCodexQuota.self, from: data) {
-            return storedQuota
+        guard let envelope = try? JSONDecoder().decode(StoredQuotaEnvelope.self, from: data) else {
+            return nil
         }
-        if let legacyQuota = try? JSONDecoder().decode(CodexQuota.self, from: data) {
-            return StoredCodexQuota(
-                fiveHourFraction: legacyQuota.fiveHourFraction,
-                weeklyFraction: legacyQuota.weeklyFraction,
-                fiveHourRemainingHours: nil,
-                sevenDayRemainingDays: nil,
-                source: "legacy-codex-quota",
-                quotaUpdatedAt: legacyQuota.quotaUpdatedAt
-            )
+
+        var quotas: [String: ProviderQuota] = [:]
+        if let codex = envelope.codex {
+            quotas["codex"] = codex
         }
-        return nil
+        if let claude = envelope.claude {
+            quotas["claude"] = claude
+        }
+        return quotas.isEmpty ? nil : quotas
     }
 }
 
@@ -174,7 +209,12 @@ final class BLEBeacon: NSObject, CBPeripheralManagerDelegate {
             return
         }
 
-        request.value = payload(for: source.snapshot())
+        let data = payload(for: source.snapshot())
+        guard request.offset <= data.count else {
+            peripheral.respond(to: request, withResult: .invalidOffset)
+            return
+        }
+        request.value = data.subdata(in: request.offset..<data.count)
         peripheral.respond(to: request, withResult: .success)
     }
 
@@ -236,15 +276,16 @@ final class BLEBeacon: NSObject, CBPeripheralManagerDelegate {
             .map { "\($0)=\(snapshot.agents[$0]!.rawValue)" }
             .joined(separator: ", ")
 
-        if let quota = snapshot.codexQuota {
-            return statuses + String(
-                format: " | 5h=%.0f%% weekly=%.0f%%",
-                quota.fiveHourFraction * 100,
-                quota.weeklyFraction * 100
-            )
+        guard let quotas = snapshot.quotas else { return statuses }
+        var segments: [String] = []
+        if let codex = quotas["codex"] {
+            segments.append(String(format: "codex 5h=%.0f%% weekly=%.0f%%", codex.fiveHourFraction * 100, codex.weeklyFraction * 100))
         }
-
-        return statuses
+        if let claude = quotas["claude"] {
+            segments.append(String(format: "claude 5h=%.0f%% weekly=%.0f%%", claude.fiveHourFraction * 100, claude.weeklyFraction * 100))
+        }
+        if segments.isEmpty { return statuses }
+        return statuses + " | " + segments.joined(separator: " | ")
     }
 
     private func timestamp() -> String {
@@ -272,7 +313,7 @@ let configs = [
 let source = MultiAgentStatusSource(configs: configs)
 let beacon = BLEBeacon(source: source)
 
-print("AgentStatusBeacon started")
+print("AgentStatusBLEBeacon started")
 for line in source.debugDescriptions {
     print("Status file : \(line)")
 }
