@@ -13,13 +13,6 @@ final class StatusViewController: UIViewController {
     private var renderedStatus: AgentStatus?
     private var isBlinking = false
 
-    private var supportsAnimatedBackgrounds: Bool {
-        if #available(iOS 13.0, *) {
-            return true
-        }
-        return false
-    }
-
     // MARK: - Views
 
     private let agentPicker = UISegmentedControl()
@@ -295,25 +288,17 @@ final class StatusViewController: UIViewController {
 
         // Only switch background animation when status actually changes.
         if renderedStatus != status {
-            if !supportsAnimatedBackgrounds {
-                // iOS12 devices are more prone to frame drops with repeating
-                // full-screen animations; use static backgrounds for stability.
+            if status == .awaitingApproval {
+                stopWorkingAnimation()
+                startBlinkAnimation()
+            } else if status == .working {
+                stopBlinkAnimation()
+                startWorkingAnimation()
+            } else {
                 stopBlinkAnimation()
                 stopWorkingAnimation()
-                view.backgroundColor = backgroundColor(for: status)
-            } else {
-                if status == .awaitingApproval {
-                    stopWorkingAnimation()
-                    startBlinkAnimation()
-                } else if status == .working {
-                    stopBlinkAnimation()
-                    startWorkingAnimation()
-                } else {
-                    stopBlinkAnimation()
-                    stopWorkingAnimation()
-                    UIView.animate(withDuration: 0.3) {
-                        self.view.backgroundColor = self.backgroundColor(for: status)
-                    }
+                UIView.animate(withDuration: 0.3) {
+                    self.view.backgroundColor = self.backgroundColor(for: status)
                 }
             }
             renderedStatus = status

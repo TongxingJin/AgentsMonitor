@@ -80,17 +80,17 @@ idevicepair pair
 
 # 4. 安装 USB pusher（iproxy 隧道 + 状态推送服务）
 cd ubuntu-usb && ./install.sh && cd ..
-#    默认只安装，不会自动启动
+#    安装后会自动 enable + start（保证 iOS12 USB 链路可立即工作）
 
 # 5. 安装 ubuntu-tailscale-beacon（Tailscale HTTP 广播服务）
 cd ubuntu-tailscale-beacon && ./install.sh && cd ..
 #    安装后会自动 enable + start（保持 Stop hook 额度对外可用）
 
-# 6. 如需启用 USB 服务（手动启动）
-systemctl --user start ubuntu-iproxy ubuntu-usb-pusher
+# 6. 如需手动重启 USB 服务
+systemctl --user restart ubuntu-iproxy ubuntu-usb-pusher
 
-# 7. 如需 USB 开机自启（可选）
-systemctl --user enable ubuntu-iproxy ubuntu-usb-pusher
+# 7. 如需手动停止 USB 服务（可选）
+systemctl --user stop ubuntu-iproxy ubuntu-usb-pusher
 
 # 8. 验证服务状态
 systemctl --user status ubuntu-iproxy ubuntu-usb-pusher ubuntu-tailscale-beacon --no-pager

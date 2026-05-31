@@ -42,11 +42,13 @@ WantedBy=default.target
 EOF
 
 systemctl --user daemon-reload
+systemctl --user enable ubuntu-iproxy ubuntu-usb-pusher
+systemctl --user start  ubuntu-iproxy ubuntu-usb-pusher
+systemctl --user status ubuntu-iproxy ubuntu-usb-pusher --no-pager
 
 echo ""
-echo "USB services installed (not started)."
+echo "USB services installed and running."
 echo "iPhone must be connected via USB and trusted (idevicepair pair)."
-echo "Start now:    systemctl --user start ubuntu-iproxy ubuntu-usb-pusher"
-echo "Enable boot:  systemctl --user enable ubuntu-iproxy ubuntu-usb-pusher"
+echo "Auto-start is enabled for reboot persistence."
 echo "Status:       systemctl --user status ubuntu-iproxy ubuntu-usb-pusher --no-pager"
 echo "Logs:         journalctl --user -u ubuntu-usb-pusher -f"

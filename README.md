@@ -134,10 +134,7 @@ idevicepair pair   # 首次需要信任设备
 
 ```bash
 cd ubuntu-usb
-./install.sh                       # 仅安装 service，默认不启动
-systemctl --user start ubuntu-iproxy ubuntu-usb-pusher
-# 可选：开机自启
-# systemctl --user enable ubuntu-iproxy ubuntu-usb-pusher
+./install.sh                       # 安装后自动 enable + start
 ```
 
 手机用数据线连接 Ubuntu，app 会自动接收状态推送。
