@@ -314,11 +314,14 @@ final class BLEBeacon: NSObject, CBPeripheralManagerDelegate {
         var wireQuotas: [String: WireProviderQuota] = [:]
         if let quotas = snapshot.quotas {
             for (agentID, quota) in quotas {
+                func round2(_ v: Double?) -> Double? {
+                    v.map { (($0 * 100).rounded() / 100) }
+                }
                 wireQuotas[agentID] = WireProviderQuota(
                     fiveHourFraction: quota.fiveHourFraction,
                     weeklyFraction: quota.weeklyFraction,
-                    fiveHourRemainingHours: quota.fiveHourRemainingHours,
-                    sevenDayRemainingDays: quota.sevenDayRemainingDays
+                    fiveHourRemainingHours: round2(quota.fiveHourRemainingHours),
+                    sevenDayRemainingDays: round2(quota.sevenDayRemainingDays)
                 )
             }
         }
