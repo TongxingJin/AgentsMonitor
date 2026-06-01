@@ -44,6 +44,32 @@ struct AgentSnapshot: Codable, Equatable {
     let quotas: [String: ProviderQuota]?
 }
 
+struct WireProviderQuota: Codable, Equatable {
+    let fiveHourFraction: Double
+    let weeklyFraction: Double
+    let fiveHourRemainingHours: Double?
+    let sevenDayRemainingDays: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case fiveHourFraction = "fh"
+        case weeklyFraction = "wk"
+        case fiveHourRemainingHours = "rh"
+        case sevenDayRemainingDays = "rd"
+    }
+}
+
+struct WireAgentSnapshot: Codable, Equatable {
+    let version: Int
+    let agents: [String: AgentStatus]
+    let quotas: [String: WireProviderQuota]?
+
+    enum CodingKeys: String, CodingKey {
+        case version = "v"
+        case agents = "a"
+        case quotas = "q"
+    }
+}
+
 struct AgentConfig {
     let id: String
     let statusFileEnvKey: String
@@ -210,6 +236,7 @@ final class BLEBeacon: NSObject, CBPeripheralManagerDelegate {
         }
 
         let data = payload(for: source.snapshot())
+        print("[BLE] Read request offset=\(request.offset) totalBytes=\(data.count)")
         guard request.offset <= data.count else {
             peripheral.respond(to: request, withResult: .invalidOffset)
             return
@@ -223,7 +250,23 @@ final class BLEBeacon: NSObject, CBPeripheralManagerDelegate {
         central: CBCentral,
         didSubscribeTo characteristic: CBCharacteristic
     ) {
+        print("[BLE] iOS subscribed, MTU=\(central.maximumUpdateValueLength)")
         push(source.snapshot(), force: true)
+    }
+
+    func peripheralManager(
+        _ peripheral: CBPeripheralManager,
+        central: CBCentral,
+        didUnsubscribeFrom characteristic: CBCharacteristic
+    ) {
+        print("[BLE] iOS unsubscribed")
+    }
+
+    func peripheralManagerIsReady(toUpdateSubscribers peripheral: CBPeripheralManager) {
+        print("[BLE] Ready to retry notify")
+        if let last = lastSnapshot {
+            push(last, force: true)
+        }
     }
 
     private func setupService() {
@@ -263,12 +306,29 @@ final class BLEBeacon: NSObject, CBPeripheralManagerDelegate {
 
         lastSnapshot = snapshot
         let data = payload(for: snapshot)
-        manager.updateValue(data, for: characteristic, onSubscribedCentrals: nil)
-        print("[\(timestamp())] Status -> \(render(snapshot: snapshot))")
+        let sent = manager.updateValue(data, for: characteristic, onSubscribedCentrals: nil)
+        print("[\(timestamp())] Status -> \(render(snapshot: snapshot)) [notify:\(sent ? "ok" : "FAILED, \(data.count)bytes")]")
     }
 
     private func payload(for snapshot: AgentSnapshot) -> Data {
-        (try? JSONEncoder().encode(snapshot)) ?? Data()
+        var wireQuotas: [String: WireProviderQuota] = [:]
+        if let quotas = snapshot.quotas {
+            for (agentID, quota) in quotas {
+                wireQuotas[agentID] = WireProviderQuota(
+                    fiveHourFraction: quota.fiveHourFraction,
+                    weeklyFraction: quota.weeklyFraction,
+                    fiveHourRemainingHours: quota.fiveHourRemainingHours,
+                    sevenDayRemainingDays: quota.sevenDayRemainingDays
+                )
+            }
+        }
+
+        let wireSnapshot = WireAgentSnapshot(
+            version: snapshot.version,
+            agents: snapshot.agents,
+            quotas: wireQuotas.isEmpty ? nil : wireQuotas
+        )
+        return (try? JSONEncoder().encode(wireSnapshot)) ?? Data()
     }
 
     private func render(snapshot: AgentSnapshot) -> String {

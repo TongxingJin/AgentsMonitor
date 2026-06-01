@@ -1,6 +1,48 @@
 import Foundation
 import CoreBluetooth
 
+private struct BLEProviderQuota: Decodable {
+    let fiveHourFraction: Double
+    let weeklyFraction: Double
+    let fiveHourRemainingHours: Double?
+    let sevenDayRemainingDays: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case fiveHourFraction = "fh"
+        case weeklyFraction = "wk"
+        case fiveHourRemainingHours = "rh"
+        case sevenDayRemainingDays = "rd"
+    }
+
+    func asProviderQuotaSnapshot() -> ProviderQuotaSnapshot {
+        ProviderQuotaSnapshot(
+            fiveHourFraction: fiveHourFraction,
+            weeklyFraction: weeklyFraction,
+            fiveHourRemainingHours: fiveHourRemainingHours,
+            sevenDayRemainingDays: sevenDayRemainingDays,
+            quotaUpdatedAt: nil
+        )
+    }
+}
+
+private struct BLESnapshot: Decodable {
+    let agents: [String: AgentStatus]
+    let quotas: [String: BLEProviderQuota]?
+
+    enum CodingKeys: String, CodingKey {
+        case agents = "a"
+        case quotas = "q"
+    }
+
+    func asStatusSnapshot() -> StatusSnapshot {
+        StatusSnapshot(
+            version: 1,
+            agents: agents,
+            quotas: quotas?.mapValues { $0.asProviderQuotaSnapshot() }
+        )
+    }
+}
+
 protocol StatusMonitorDelegate: AnyObject {
     func monitorDidConnect()
     func monitorDidDisconnect()
@@ -30,18 +72,23 @@ final class BLEStatusMonitor: NSObject {
     }
 
     private func notify(data: Data?) {
-        if let data,
-           let snapshot = try? JSONDecoder().decode(StatusSnapshot.self, from: data) {
-            delegate?.monitorDidReceive(snapshot)
+        guard let data else { return }
+
+        // Compact BLE wire format (short keys).
+        if let snap = try? JSONDecoder().decode(BLESnapshot.self, from: data) {
+            delegate?.monitorDidReceive(snap.asStatusSnapshot())
             return
         }
 
-        // Keep supporting very old plain-text beacons, but never downgrade to
-        // unknown on malformed/truncated JSON payloads.
-        guard let legacyStatus = data.flatMap({ AgentStatus.from(data: $0) }),
-              legacyStatus != .unknown else {
+        // Legacy full-key JSON format (older beacon versions).
+        if let snap = try? JSONDecoder().decode(StatusSnapshot.self, from: data) {
+            delegate?.monitorDidReceive(snap)
             return
         }
+
+        // Very old plain-text beacons; never downgrade to unknown on bad JSON.
+        let legacyStatus = AgentStatus.from(data: data)
+        guard legacyStatus != .unknown else { return }
         delegate?.monitorDidReceive(StatusSnapshot(version: 1, agents: ["claude": legacyStatus], quotas: nil))
     }
 

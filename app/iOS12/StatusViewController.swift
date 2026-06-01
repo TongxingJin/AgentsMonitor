@@ -328,12 +328,12 @@ final class StatusViewController: UIViewController {
         sevenDayProgress.progressTintColor = quotaColor(for: quotas.sevenDayFraction)
 
         if let hours = quotas.fiveHourRemainingHours {
-            fiveHourValueLabel.text = String(format: "%.1fh (%.0f%%)", hours, quotas.fiveHourFraction * 100)
+            fiveHourValueLabel.text = String(format: "%.1fh · %.0f%%", hours, quotas.fiveHourFraction * 100)
         } else {
             fiveHourValueLabel.text = String(format: "%.0f%%", quotas.fiveHourFraction * 100)
         }
         if let days = quotas.sevenDayRemainingDays {
-            sevenDayValueLabel.text = String(format: "%.1fd (%.0f%%)", days, quotas.sevenDayFraction * 100)
+            sevenDayValueLabel.text = String(format: "%.1fd · %.0f%%", days, quotas.sevenDayFraction * 100)
         } else {
             sevenDayValueLabel.text = String(format: "%.0f%%", quotas.sevenDayFraction * 100)
         }

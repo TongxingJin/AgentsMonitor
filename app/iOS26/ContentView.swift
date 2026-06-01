@@ -420,15 +420,12 @@ struct ContentView: View {
     }
 
     private var transportStatusRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(monitor.transportStatuses) { status in
-                    TransportStatusBadge(status: status)
-                }
+        HStack(spacing: 10) {
+            ForEach(monitor.transportStatuses) { status in
+                TransportStatusBadge(status: status)
             }
-            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .scrollDisabled(true)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func updateIdleTimer() {
