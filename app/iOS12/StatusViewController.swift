@@ -291,6 +291,7 @@ final class StatusViewController: UIViewController {
             if status == .awaitingApproval {
                 stopWorkingAnimation()
                 startBlinkAnimation()
+                ApprovalHaptics.shared.triggerIfNeeded()
             } else if status == .working {
                 stopBlinkAnimation()
                 startWorkingAnimation()

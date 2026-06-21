@@ -287,6 +287,11 @@ struct ContentView: View {
         .onChange(of: monitor.isConnected) { _, _ in
             updateIdleTimer()
         }
+        .onChange(of: currentStatus) { oldValue, newValue in
+            if newValue == .awaitingApproval, oldValue != .awaitingApproval {
+                ApprovalHaptics.shared.triggerIfNeeded()
+            }
+        }
     }
 
     private func quotaView(
